@@ -1,0 +1,39 @@
+from pyad import *
+import getpass
+
+def get_group_details(group_name):
+    try:
+        group = pyad.adgroup.ADGroup.from_cn(group_name)
+        group_details = {
+            "Name": group.get_attribute("sAMAccountName"),
+            "Description": group.get_attribute("description"),
+            "Members": [member.get_attribute("sAMAccountName") for member in group.get_members()]
+        }
+        return group_details
+    except pyad.pyadexceptions.ADObjectNotFound:
+        print(f"Group '{group_name}' not found in Active Directory.")
+        return None
+
+def read_groups_from_file(file_path):
+    with open(file_path, 'r') as file:
+        groups = [line.strip() for line in file.readlines() if line.strip()]
+    return groups
+
+def main():
+    pyad.set_defaults(ldap_server="your_ldap_server")  # Replace with your LDAP server
+    pyad.set_credentials("your_username", getpass.getpass("Enter your password:"))
+
+    # File containing group names
+    file_path = "group_names.txt"  # Replace with your file path
+
+    # Read group names from file
+    groups = read_groups_from_file(file_path)
+
+    for group in groups:
+        group_details = get_group_details(group)
+        if group_details:
+            members_str = ", ".join(group_details["Members"])
+            print(f"{group_details['Name']}: {members_str}")
+
+if __name__ == "__main__":
+    main()
