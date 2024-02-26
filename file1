@@ -1,0 +1,4 @@
+
+In our analytics platform, we require PHI data from ABC's Snowflake account. We classify it as category 1, and our application is categorized as 3. If ABC intends to share PHI data, they will encrypt it and place it in category 2 applications. Upgrading our seal to category 2 eliminates the need for an intermediate application.
+
+While having one database for both external and internal tables makes sense, ABC standards require us to keep external tables in the EXT_DB database. This separation is important for disaster recovery. Permanent tables are regularly replicated in backup regions, but external tables, with their different nature, don't fit the same process. So, we maintain two databases to ensure a smooth and effective recovery plan.
