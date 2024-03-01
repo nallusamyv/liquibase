@@ -1,0 +1,23 @@
+from awsglue.context import GlueContext
+from pyspark.context import SparkContext
+from pyspark.sql import SparkSession
+
+# Create a GlueContext
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+
+# Specify the S3 path for the Parquet data
+parquet_input_path = "s3://your-parquet-path/"
+
+# Read Parquet data into a DataFrame
+parquet_df = spark.read.parquet(parquet_input_path)
+
+# Display the DataFrame schema and show some sample data
+parquet_df.printSchema()
+parquet_df.show()
+
+# You can perform further processing on the DataFrame if needed
+
+# Stop the SparkContext
+sc.stop()
