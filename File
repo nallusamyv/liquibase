@@ -1,0 +1,1 @@
+CAST(CASE WHEN get($1, 'eff_dt') = '' THEN NULL ELSE get($1, 'eff_dt') END AS DATE)
