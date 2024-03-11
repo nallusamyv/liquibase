@@ -1,0 +1,4 @@
+Implementation of 5 tables in production to validate production Jules pipeline functionality for the first release this weekend.
+Terraform script development ongoing for inclusion of batch audit table.
+CAS request initiation dependent on batch team's completion of S3 file configuration adjustments.
+Integration timeline aligned with batch team's schedule.
