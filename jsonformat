@@ -1,22 +1,30 @@
-resource "snowflake_external_table" "example_table" {
-  name     = "your_external_table_name"
+provider "snowflake" {
+  username  = "your_username"
+  password  = "your_password"
+  account   = "your_account_url"
+  warehouse = "your_snowflake_warehouse"
+  database  = "your_snowflake_database"
+  schema    = "your_snowflake_schema"
+}
+
+resource "snowflake_external_table" "test_111" {
+  name     = "TEST_111"
   database = snowflake_database.example_db.name
   schema   = snowflake_schema.example_schema.name
 
-  file_format = "your_json_file_format"
-  location    = "your_external_location"
+  location      = "@TESt111"
+  auto_refresh  = true
+  file_format   = "test_111_file_format"  # Define your file format resource or use the existing one
 
   column {
-    name       = "column1"
-    type       = "VARCHAR(255)"
+    name = "filename"
+    type = "TEXT"
+    metadata = "filename"
   }
 
   column {
-    name       = "column2"
-    type       = "INT"
-  }
-
-  json {
-    type = "auto"  # or specify the JSON type based on your data structure
+    name = "k"
+    type = "TEXT"
+    expression = 'value:"k"::TEXT'
   }
 }
