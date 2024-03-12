@@ -1,0 +1,22 @@
+resource "snowflake_external_table" "example_table" {
+  name     = "your_external_table_name"
+  database = snowflake_database.example_db.name
+  schema   = snowflake_schema.example_schema.name
+
+  file_format = "your_json_file_format"
+  location    = "your_external_location"
+
+  column {
+    name       = "column1"
+    type       = "VARCHAR(255)"
+  }
+
+  column {
+    name       = "column2"
+    type       = "INT"
+  }
+
+  json {
+    type = "auto"  # or specify the JSON type based on your data structure
+  }
+}
