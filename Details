@@ -1,2 +1,23 @@
 SELECT EXTERNAL_TABLE_NAME, TARGET_SCHEMA_NAME, TARGET_TABLE_NAME, STAGE_SCHEMA_NAME, STAGE_NAME
 FROM SYSPROC.ADMIN_GET_EXTERNAL_ROUTINE_INFO()
+provider "snowflake" {
+  account    = "your_account_name"
+  username   = "your_username"
+  password   = "your_password"
+  warehouse  = "your_warehouse"
+  database   = "your_database"
+  schema     = "your_schema"
+}
+
+resource "snowflake_task" "example_task" {
+  name            = "my_task"
+  warehouse       = "my_warehouse"
+  database        = "my_database"
+  schema          = "my_schema"
+  sql_statement   = "INSERT INTO my_table SELECT * FROM my_source_table"
+  
+  schedule {
+    cron_expression = "0 6 * * *"  # Runs daily at 6 AM
+    timezone = "America/Los_Angeles"
+  }
+}
