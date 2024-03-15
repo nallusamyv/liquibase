@@ -1,0 +1,29 @@
+provider "snowflake" {
+  account   = "your_account"
+  username  = "your_username"
+  password  = "your_password"
+  warehouse = "your_warehouse"
+  role      = "your_role"
+}
+
+resource "snowflake_task" "refresh_external_tables" {
+  name        = "refresh_external_tables"
+  warehouse   = "your_warehouse"
+  schedule    = "5 minute" # Adjust the schedule as needed
+  statement   = <<EOF
+    DECLARE
+      v_table_name VARCHAR;
+      v_schema_name VARCHAR;
+      CURSOR cur_tables IS
+        SELECT table_name, table_schema
+        FROM information_schema.tables
+        WHERE table_schema = 'your_schema' AND table_type = 'EXTERNAL';
+    BEGIN
+      FOR rec IN cur_tables DO
+        v_table_name := rec.table_name;
+        v_schema_name := rec.table_schema;
+        EXECUTE IMMEDIATE 'ALTER EXTERNAL TABLE ' || v_schema_name || '.' || v_table_name || ' REFRESH;';
+      END FOR;
+    END;
+EOF
+}
