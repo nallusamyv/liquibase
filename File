@@ -1,1 +1,1 @@
-CAST(CASE WHEN get($1, 'eff_dt') = '' THEN NULL ELSE get($1, 'eff_dt') END AS DATE)
+0 6,12 * * 1-6,MON-SAT America/New_York
