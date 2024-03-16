@@ -1,29 +1,48 @@
-provider "snowflake" {
-  account   = "your_account"
-  username  = "your_username"
-  password  = "your_password"
+resource "snowflake_task" "refresh_all_tables_in_schema" {
+  name      = "refresh_all_tables_in_schema_task"
   warehouse = "your_warehouse"
-  role      = "your_role"
+  schedule  = "5 minutes" # Schedule the task to run every 5 minutes
+
+  sql_statement = <<-EOT
+    CALL refresh_all_tables_in_schema();
+  EOT
 }
 
-resource "snowflake_task" "refresh_external_tables" {
-  name        = "refresh_external_tables"
-  warehouse   = "your_warehouse"
-  schedule    = "5 minute" # Adjust the schedule as needed
-  statement   = <<EOF
-    DECLARE
-      v_table_name VARCHAR;
-      v_schema_name VARCHAR;
-      CURSOR cur_tables IS
-        SELECT table_name, table_schema
-        FROM information_schema.tables
-        WHERE table_schema = 'your_schema' AND table_type = 'EXTERNAL';
-    BEGIN
-      FOR rec IN cur_tables DO
-        v_table_name := rec.table_name;
-        v_schema_name := rec.table_schema;
-        EXECUTE IMMEDIATE 'ALTER EXTERNAL TABLE ' || v_schema_name || '.' || v_table_name || ' REFRESH;';
-      END FOR;
-    END;
-EOF
+resource "snowflake_stored_procedure" "refresh_all_tables_in_schema" {
+  name = "refresh_all_tables_in_schema"
+  database = "your_database"
+  schema = "your_schema"
+  arguments = []
+  returns = null
+  api_integration = null
+
+  code = <<-EOF
+    CREATE OR REPLACE PROCEDURE refresh_all_tables_in_schema()
+    RETURNS STRING
+    LANGUAGE JAVASCRIPT
+    AS
+    $$
+    var schema_name = 'YOUR_SCHEMA';
+    var sql_command = '';
+    var sql_result = '';
+
+    // Get list of tables in the schema
+    var get_tables_query = "SHOW TABLES IN " + schema_name;
+    var stmt = snowflake.createStatement({sqlText: get_tables_query});
+    var tables_result = stmt.execute();
+    
+    // Iterate through tables and refresh each one
+    while (tables_result.next()) {
+      var table_name = tables_result.getColumnValue('name');
+      sql_command = "ALTER EXTERNAL TABLE " + schema_name + "." + table_name + " REFRESH;";
+      try {
+        snowflake.execute({ sqlText: sql_command });
+        sql_result += "Table " + schema_name + "." + table_name + " refreshed successfully.\n";
+      } catch (err) {
+        sql_result += "Error refreshing table " + schema_name + "." + table_name + ": " + err + "\n";
+      }
+    }
+    return sql_result;
+    $$;
+  EOF
 }
