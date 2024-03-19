@@ -6,3 +6,10 @@ WHERE QUERY_TEXT ILIKE '%CALL your_stored_procedure_name%'; -- Replace 'your_sto
 SELECT *
 FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY())
 ORDER BY START_TIME DESC;
+
+CREATE OR REPLACE TASK my_task_daytime
+  WAREHOUSE = my_warehouse
+  SCHEDULE = '0 * 11-23 * *' -- Runs every hour from 6 am to 7 pm EST
+AS
+  CALL my_procedure();
+
