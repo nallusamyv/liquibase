@@ -1,0 +1,1 @@
+In Snowflake, when creating a masking policy, you need to specify the data type for the input value in the masking policy definition. This is because the masking policy needs to know the data type of the input value in order to perform the masking operation correctly.
