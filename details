@@ -9,7 +9,8 @@ ORDER BY START_TIME DESC;
 
 CREATE OR REPLACE TASK my_task_daytime
   WAREHOUSE = my_warehouse
-  SCHEDULE = '0 * 11-23 * *' -- Runs every hour from 6 am to 7 pm EST
+  SCHEDULE = '0 */2 3-15 * * America/Los_Angeles' -- Runs every 2 hours from 6 am to 7 pm EST in Los Angeles timezone
 AS
   CALL my_procedure();
+
 
