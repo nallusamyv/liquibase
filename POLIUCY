@@ -1,4 +1,1 @@
-Developers access the S3 bucket using Cross-Account Access, risking exposure of sensitive fields to users.
-A Proof of Concept (POC) recommended utilizing EMR with Lake Formation for PySpark code execution as a workaround.
-Developers are inquiring about the status of the progress regarding the POC.
-They also seek discussions on architectural solutions for column-level access control in Redshift and Snowflake, excluding Immuta.
+
