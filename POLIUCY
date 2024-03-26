@@ -1,1 +1,84 @@
 
+import snowflake.connector
+import pandas as pd
+
+def describe_masking_policy(conn, masking_policy_name):
+    # Create a cursor object
+    cur = conn.cursor()
+
+    # Execute DESCRIBE MASKING POLICY command
+    cur.execute(f"DESCRIBE MASKING POLICY {masking_policy_name}")
+
+    # Fetch result
+    result = cur.fetchall()
+
+    # Close cursor
+    cur.close()
+
+    # Extract masking policy definition
+    policy_definition = ""
+    for row in result:
+        policy_definition += row[0]
+
+    return policy_definition
+
+def get_masking_policy_info(view_name, schema_name):
+    # Connect to Snowflake
+    conn = snowflake.connector.connect(
+        user='<your_username>',
+        password='<your_password>',
+        account='<your_account>',
+        warehouse='<your_warehouse>',
+        database='<your_database>',
+        schema='<your_schema>'
+    )
+
+    # Create a cursor object
+    cur = conn.cursor()
+
+    # Execute DESCRIBE VIEW query
+    cur.execute(f"DESCRIBE VIEW {schema_name}.{view_name}")
+
+    # Fetch all rows
+    rows = cur.fetchall()
+
+    # Close cursor
+    cur.close()
+
+    # Close connection
+    conn.close()
+
+    # Extract columns, data types, and masking policies
+    column_info = []
+    for row in rows:
+        column_name = row[0]
+        data_type = row[1]
+        masking_policy = row[10] if len(row) > 10 else None  # Get masking policy if available
+        if masking_policy:
+            masking_policy_definition = None
+            if "ABC_ROLE" in masking_policy:
+                # Extract masking policy definition
+                masking_policy_definition = describe_masking_policy(conn, masking_policy)
+            column_info.append((column_name, data_type, masking_policy, masking_policy_definition))
+        else:
+            column_info.append((column_name, data_type, None, None))
+
+    return column_info
+
+def main():
+    view_name = 'your_view_name'
+    schema_name = 'your_schema_name'
+
+    # Get column info including masking policies
+    column_info = get_masking_policy_info(view_name, schema_name)
+
+    # Create a DataFrame
+    df = pd.DataFrame(column_info, columns=['Column', 'Data Type', 'Masking Policy', 'Masking Policy Definition'])
+
+    # Write DataFrame to Excel file
+    excel_file_path = 'column_info.xlsx'
+    df.to_excel(excel_file_path, index=False)
+    print(f"Data written to '{excel_file_path}'")
+
+if __name__ == "__main__":
+    main()
