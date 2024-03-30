@@ -1,9 +1,1 @@
-Schema(ABC_T,ABC_V) creation process successful
-External Stages set up successfully (pointing to TX file and Audit bucket)
-Issue encountered during assignment of Table/View/Access roles
-Error: "invalid count argument"
-Issue seems related to Terraform execution order
-Not present in lower regions
-Collaboration with Snowflake Terraform code team for resolution
-Attempts to access Snowflake for verification using Function ID unsuccessful
-Further investigation required
+
