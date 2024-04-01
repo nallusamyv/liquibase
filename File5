@@ -1,16 +1,2 @@
--- Example: Creating a view on top of a staging table with a subfolder path
 
--- Assuming you have a stage named "my_stage" already created pointing to a high-level directory
-
--- Create a view on top of the stage with the subfolder path
-CREATE VIEW my_staging_view AS
-SELECT *
-FROM TABLE(INFORMATION_SCHEMA.FILES(
-  FILE_PATH=>'my_stage/subfolder/',
-  PATTERN=>'*.csv', -- Adjust the pattern as per your file format
-  FILE_FORMAT=>'CSV' -- Adjust the file format as per your files
-));
-
--- Query the view to access the staged data
-SELECT *
-FROM my_staging_view;
+In my personal opinion, Terraform may not be the most suitable choice for our implementation. I have concerns that accidental deletion of Terraform code could lead to the unintended destruction of tables or views. I believe that Liquibase would be a better fit for managing this process.
