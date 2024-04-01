@@ -1,2 +1,6 @@
+Following our previous discussions, an issue has arisen where creating an access role and granting access to a functional role within the same module has led to unexpected errors. Although according to Terraform Enterprise (TFE) guidelines, this approach is acceptable, the issue persists. After discussions with the Professional Services (PS) team, it has been suggested to first create the access role and subsequently grant access to the functional role.
 
+Notably, this issue has not been encountered in the lower region. Attempts to replicate the issue in the lower region have been made, but difficulties in removing the access role have arisen. The PS team is actively investigating this matter.
+
+To proceed temporarily, the plan is to create the access role first and then grant access. This approach will be implemented until further resolution is reached.
 In my personal opinion, Terraform may not be the most suitable choice for our implementation. I have concerns that accidental deletion of Terraform code could lead to the unintended destruction of tables or views. I believe that Liquibase would be a better fit for managing this process.
