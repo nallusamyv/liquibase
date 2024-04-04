@@ -1,22 +1,14 @@
+Coarse-grained access control: The analyst role is responsible for implementing broad access controls for the MSCI tables. Eventually, this will transition to Immuta through subscription policies, once Immuta resolves granting access to the tables instead of row-level access policies.
 
-Hi Everyone,  
+Fine-grained access control: Currently, this role displays all fields without any masking. Once the Immuta data policy is in place, this aspect will be addressed and managed accordingly.
 
-MSCI tables implemented successfully in the production environment and using the functional id, production support team able to successfully login and verify that table record displayed correctly
+Currently, this role is authorized to execute queries using Snowflake warehouse sizes Small, Medium, and Large.
 
-The following validation has been performed:
 
-Table Count Comparison: Both MSCI table record counts for each partition in Snowflake are matching with Athena (without audit table), ensuring that Snowflake displays all records from the partition.
+Snowflake performance evaluation based on warehouse size involved running several queries to assess execution times for the following scenarios:
 
-View Count Comparison: Snowflake views display the latest version for most partitions, and the counts match with Athena and Teradata.
+Determining the minimum and maximum values for all fields in the table.
+Performing self-joins on the table multiple times, including the inclusion of row numbers.
+Checking the existence condition for the same table multiple times and verifying the audit table as well.
 
-Field Value Comparison Between Snowflake and Athena: For one MSCI table, comparison of varchar, date fields' minimum and maximum values, as well as numeric fields' minimum, maximum, and average values, are compared between Snowflake and Athena for selected partitions, all yielding matching results.
-
-Record Sampling from Snowflake View: Selection of 10 records from the Snowflake view confirms that data is displayed in the expected format. Further Satyan will validate the datas with help of RDP analytics team.
-
-Observations:
-
-It was observed that data from 8 partitions (in the years 2019 and 2021) is not displayed in Snowflake views(in athena also without Audit table) due to incorrect entries in the audit table. However, these period values are present in Teradata.
-
-Field value comparison between Athena and Teradata showed matching minimum and maximum values for numeric fields, but for some varchar fields, the maximum value differs between Snowflake and Teradata (with Snowflake matching Athena).
-
-Currently, statistical analysis is being performed using different warehouse size roles (Small, Medium, Large), selecting specific partitions, and performing inner joins and self-joins on tables. The statistics will be provided by tomorrow.
+This exercise was conducted by logging out of Snowflake and then executing the same query twice with the same role in different interval.
