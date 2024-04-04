@@ -1,14 +1,1 @@
-Coarse-grained access control: The analyst role is responsible for implementing broad access controls for the MSCI tables. Eventually, this will transition to Immuta through subscription policies, once Immuta resolves granting access to the tables instead of row-level access policies.
-
-Fine-grained access control: Currently, this role displays all fields without any masking. Once the Immuta data policy is in place, this aspect will be addressed and managed accordingly.
-
-Currently, this role is authorized to execute queries using Snowflake warehouse sizes Small, Medium, and Large.
-
-
-Snowflake performance evaluation based on warehouse size involved running several queries to assess execution times for the following scenarios:
-
-Determining the minimum and maximum values for all fields in the table.
-Performing self-joins on the table multiple times, including the inclusion of row numbers.
-Checking the existence condition for the same table multiple times and verifying the audit table as well.
-
-This exercise was conducted by logging out of Snowflake and then executing the same query twice with the same role in different interval.
+External Data Cache: When querying external tables (tables stored in external storage systems like S3), Snowflake caches metadata information and query results as appropriate. While the caching behavior for external tables may differ from internal tables due to the nature of external storage systems, Snowflake still leverages caching to optimize performance whenever possible
