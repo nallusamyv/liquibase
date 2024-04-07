@@ -1,4 +1,43 @@
 
-In our analytics platform, we require PHI data from ABC's Snowflake account. We classify it as category 1, and our application is categorized as 3. If ABC intends to share PHI data, they will encrypt it and place it in category 2 applications. Upgrading our seal to category 2 eliminates the need for an intermediate application.
+Setup Risk Analytics Platform:
 
-While having one database for both external and internal tables makes sense, ABC standards require us to keep external tables in the EXT_DB database. This separation is important for disaster recovery. Permanent tables are regularly replicated in backup regions, but external tables, with their different nature, don't fit the same process. So, we maintain two databases to ensure a smooth and effective recovery plan.
+Objective: Successfully setup the implementation of the Risk analytics platform in the Snowflake environment for ABC products.
+Measurable Target: Ensure that the Risk analytics platform is fully operational and integrated with Snowflake within six months.
+Actionable Steps:
+Oversee the deployment of necessary infrastructure and resources for the Risk analytics platform in the Snowflake environment.
+Conduct regular progress reviews and address any challenges or roadblocks to ensure timely completion.
+
+Automation and cost control on Building Analytics Platform:
+
+Objective: Streamline the process of constructing external tables in the analytics platform by automating the extraction of schema information from S3 files and generating Terraform/Liquibase scripts. Additionally, implement the conversion of Parquet files to Iceberg tables to enhance efficiency and reduce costs.
+Measurable Target: Establish an automated solution for constructing external tables while concurrently identifying opportunities to minimize expenses through storage and resource optimization.
+Actionable Steps:
+Develop customized scripts or tools proficient in extracting schema details from S3 files and generating Terraform/Liquibase scripts tailored for creating external tables seamlessly.
+Implement a reconciliation process to validate the coherence between S3 objects and Snowflake schema, ensuring precise data representation within the analytics platform
+
+
+
+Data Access Control Initiative:
+
+Objective: Strengthen data access control using appropriate tools and automate mapping tags for different environments.
+Measurable Target: Implement access control policies using Immuta and automate mapping tags for different environments within six months.
+Actionable Steps:
+Develop access control policies and procedures using immuta tailored to different platforms and environments.
+Implement automation scripts or tools to map tags for different environments in data access control tools.
+
+
+Continued Learning:
+
+Objective: Complete the Snowflake Certification and Explore GEN AI areas and contribute to one GEN AI use case .
+Measurable Target: Complete Snowflake certification within this FY and contribute to a GEN AI use case within six months.
+Actionable Steps:
+Enroll in a Snowflake certification program and allocate dedicated study time each week to prepare for the exam.
+Research and explore GEN AI areas, identifying potential use cases relevant to the organization's goals and objectives.
+Collaborate with relevant teams to contribute expertise and insights to the development of a GEN AI use case.
+
+Automate Data Governance Process:
+Objective: Explore possibilities for automating the data governance process to improve efficiency and effectiveness.
+Measurable Target: Identify potential areas for automation within the data governance process and develop a proof of concept within three months.
+Actionable Steps:
+Research and evaluate automation tools and technologies that can streamline data governance activities.
+Develop a proof of concept for automating a specific aspect of the data governance process and assess its feasibility and impact.
