@@ -1,3 +1,6 @@
+find / -name spark-shell 2>/dev/null
+
+
 import os
 
 # Get the value of SPARK_HOME
