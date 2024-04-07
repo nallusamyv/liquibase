@@ -1,0 +1,7 @@
+import os
+
+# Get the value of SPARK_HOME
+spark_home = os.getenv('SPARK_HOME')
+
+# Display the value
+print("SPARK_HOME:", spark_home)
