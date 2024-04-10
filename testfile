@@ -1,12 +1,2 @@
-SELECT
-  TASK_NAME,
-  SCHEDULED_TIME,
-  START_TIME,
-  END_TIME,
-  STATE
-FROM
-  TABLE(INFORMATION_SCHEMA.TASK_HISTORY())
-WHERE
-  TASK_NAME = 'my_task'
-ORDER BY
-  SCHEDULED_TIME DESC;
+
+I've submitted a request to test the fine-grained access control in the test region and scheduled a demo for the product owner on Saturday. Satyan, I've also included you in the request so you can review all field values from your end. Kindly follow up on these requests for approval.
