@@ -1,34 +1,12 @@
-resource "snowflake_external_table" "example_table" {
-  name         = "example_table"
-  database     = snowflake_database.example_db.name
-  schema       = snowflake_schema.example_schema.name
-  file_format  = "your_file_format_name"
-  stage        = snowflake_stage.example_stage.name
-  auto_refresh = true
+import boto3
+import json
 
-  column {
-    name       = "field1"
-    type       = "NUMBER"
-    expression = "to_number(coalesce(nullif(get($1, 'field1'), ''), '0'), 10, 0)"
-  }
+def lambda_handler(event, context):
+    # Extract the bucket name and object key from the event data
+    bucket = event['Records'][0]['s3']['bucket']['name']
+    key = event['Records'][0]['s3']['object']['key']
+    
+    # Now you have the bucket and key, you can perform operations on the object
+    print(f"Object modified in bucket '{bucket}' with key '{key}'")
 
-  column {
-    name       = "field2"
-    type       = "STRING"
-    expression = "nullif(get($1, 'field2'), '')"
-  }
-
-  column {
-    name       = "field3"
-    type       = "DATE"
-    expression = "to_date(nullif(get($1, 'field3'), ''), 'YYYY-MM-DD')"
-  }
-
-  column {
-    name       = "timestamp_field"
-    type       = "TIMESTAMP"
-    expression = "to_timestamp(nullif(get($1, 'timestamp_field'), ''), 'YYYY-MM-DD HH24:MI:SS')"
-  }
-
-  // Add more columns as needed
-}
+    # Add your logic to process the modified object here
