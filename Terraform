@@ -1,12 +1,26 @@
-import boto3
 import json
 
 def lambda_handler(event, context):
-    # Extract the bucket name and object key from the event data
-    bucket = event['Records'][0]['s3']['bucket']['name']
-    key = event['Records'][0]['s3']['object']['key']
-    
-    # Now you have the bucket and key, you can perform operations on the object
-    print(f"Object modified in bucket '{bucket}' with key '{key}'")
+    for record in event['Records']:
+        # Extract bucket name and object key from the event record
+        bucket_name = record['s3']['bucket']['name']
+        object_key = record['s3']['object']['key']
+        
+        # Extract subfolder from the object key
+        subfolder = object_key.split('/')[0]  # Assuming subfolder is the first part of the key
+        
+        # Determine the appropriate handling based on bucket name and subfolder
+        if subfolder == 'subfolder4':
+            handle_subfolder4_event(bucket_name, object_key)
+        elif subfolder == 'subfolder1':
+            handle_subfolder1_event(bucket_name, object_key)
+        else:
+            print("Unhandled event:", record)
 
-    # Add your logic to process the modified object here
+def handle_subfolder4_event(bucket_name, object_key):
+    # Handle events from subfolder4
+    print(f"Handling event from bucket '{bucket_name}' in subfolder4 for object '{object_key}'")
+
+def handle_subfolder1_event(bucket_name, object_key):
+    # Handle events from subfolder1
+    print(f"Handling event from bucket '{bucket_name}' in subfolder1 for object '{object_key}'")
