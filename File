@@ -1,11 +1,13 @@
-
+import boto3
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
 
 # Initialize SparkSession
 spark = SparkSession.builder \
     .appName("ParquetToIceberg") \
     .getOrCreate()
+
+# Initialize Boto3 S3 client
+s3 = boto3.client('s3')
 
 # Read the Parquet file from S3 into a DataFrame
 s3_bucket = 'your-bucket-name'
@@ -16,7 +18,7 @@ parquet_df = spark.read.parquet(f"s3://{s3_bucket}/{s3_key}")
 parquet_schema = parquet_df.schema
 
 # Optionally, transform or filter the DataFrame as needed
-transformed_df = parquet_df.select(col("some_column"))
+transformed_df = parquet_df
 
 # Write the DataFrame to Iceberg table
 output_path = 's3://your-bucket-name/path/to/iceberg-table'
