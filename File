@@ -1,1 +1,30 @@
 
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
+# Initialize SparkSession
+spark = SparkSession.builder \
+    .appName("ParquetToIceberg") \
+    .getOrCreate()
+
+# Read the Parquet file from S3 into a DataFrame
+s3_bucket = 'your-bucket-name'
+s3_key = 'path/to/parquet/file'
+parquet_df = spark.read.parquet(f"s3://{s3_bucket}/{s3_key}")
+
+# Infer the schema from the Parquet file
+parquet_schema = parquet_df.schema
+
+# Optionally, transform or filter the DataFrame as needed
+transformed_df = parquet_df.select(col("some_column"))
+
+# Write the DataFrame to Iceberg table
+output_path = 's3://your-bucket-name/path/to/iceberg-table'
+transformed_df.write \
+    .format("iceberg") \
+    .mode("overwrite") \  # Choose the mode based on your requirement
+    .option("schema", parquet_schema.json()) \
+    .save(output_path)
+
+# Stop the SparkSession
+spark.stop()
