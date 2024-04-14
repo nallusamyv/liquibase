@@ -2,11 +2,12 @@ from pyspark.sql import SparkSession
 
 # Initialize SparkSession
 spark = SparkSession.builder \
-    .appName("ReadParquetFile") \
+    .appName("ReadParquetFileFromS3") \
     .getOrCreate()
 
-# Read the Parquet file into a DataFrame
-parquet_df = spark.read.parquet("path/to/parquet/file")
+# Read the Parquet file from S3 into a DataFrame
+s3_path = "s3://your-bucket-name/path/to/parquet/file"
+parquet_df = spark.read.parquet(s3_path)
 
 # Optionally, display the schema of the DataFrame
 print("DataFrame Schema:")
