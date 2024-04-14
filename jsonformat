@@ -1,30 +1,22 @@
-provider "snowflake" {
-  username  = "your_username"
-  password  = "your_password"
-  account   = "your_account_url"
-  warehouse = "your_snowflake_warehouse"
-  database  = "your_snowflake_database"
-  schema    = "your_snowflake_schema"
-}
+import org.apache.spark.sql.SparkSession
+import org.apache.iceberg.spark.SparkCatalog
 
-resource "snowflake_external_table" "test_111" {
-  name     = "TEST_111"
-  database = snowflake_database.example_db.name
-  schema   = snowflake_schema.example_schema.name
+object ParquetToIceberg {
 
-  location      = "@TESt111"
-  auto_refresh  = true
-  file_format   = "test_111_file_format"  # Define your file format resource or use the existing one
+  def main(args: Array[String]): Unit = {
+    // Initialize SparkSession
+    val spark = SparkSession.builder()
+      .appName("ParquetToIceberg")
+      .getOrCreate()
 
-  column {
-    name = "filename"
-    type = "TEXT"
-    metadata = "filename"
-  }
+    // Read partitioned Parquet data from S3 into a DataFrame
+    val parquetDataFrame = spark.read.parquet("s3://your-bucket-name/path/to/parquet")
 
-  column {
-    name = "k"
-    type = "TEXT"
-    expression = 'value:"k"::TEXT'
+    // Initialize Iceberg TableCatalog using SparkCatalog
+    val catalog = new SparkCatalog(spark.sessionState, "s3://your-bucket-name/path/to/iceberg-tables")
+
+    // Convert DataFrame to Iceberg table
+    parquetDataFrame.writeTo("iceberg:s3://your-bucket-name/path/to/iceberg-table")
+      .createOrReplace()
   }
 }
