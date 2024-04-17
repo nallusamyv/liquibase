@@ -1,0 +1,19 @@
+from pyspark.sql import SparkSession
+import iceberg
+
+# Initialize SparkSession
+spark = SparkSession.builder \
+    .appName("Parquet to Iceberg") \
+    .getOrCreate()
+
+# Read Parquet file from S3
+parquet_df = spark.read.parquet("s3a://your_bucket_name/path/to/parquet_file.parquet")
+
+# Convert DataFrame to Iceberg table
+iceberg_table = iceberg.as_table(parquet_df)
+
+# Write Iceberg table back to S3
+iceberg_table.write().mode("overwrite").save("s3a://your_bucket_name/path/to/iceberg_table")
+
+# Stop SparkSession
+spark.stop()
