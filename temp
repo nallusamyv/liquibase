@@ -1,0 +1,45 @@
+import boto3
+import pyarrow.parquet as pq
+from pyarrow import fs
+import iceberg
+
+# Function to read Parquet file from S3
+def read_parquet_from_s3(bucket_name, key):
+    s3 = fs.S3FileSystem()
+
+    # Open Parquet file from S3
+    parquet_file = s3.open_input_stream(f"s3://{bucket_name}/{key}")
+    
+    # Read Parquet file into a PyArrow table
+    table = pq.read_table(parquet_file)
+    
+    return table
+
+# Function to write Iceberg table to S3
+def write_iceberg_to_s3(iceberg_table, bucket_name, key):
+    s3 = fs.S3FileSystem()
+
+    # Create a new Iceberg writer for S3
+    iceberg_writer = iceberg_table.new_writer(f"s3://{bucket_name}/{key}")
+
+    # Write Iceberg table to S3
+    with iceberg_writer as writer:
+        writer.write()
+
+# Specify your S3 bucket name and key
+bucket_name = 'your_bucket_name'
+parquet_key = 'path/to/your/parquet_file.parquet'
+iceberg_key = 'path/to/your/iceberg_table'
+
+# Read Parquet file from S3
+parquet_table = read_parquet_from_s3(bucket_name, parquet_key)
+
+# Convert Parquet table to Iceberg format
+iceberg_table = iceberg.table(parquet_table)
+
+# Write Iceberg table back to S3
+write_iceberg_to_s3(iceberg_table, bucket_name, iceberg_key)
+
+-------
+!pip install boto3
+!pip install iceberg
