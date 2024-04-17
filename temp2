@@ -1,0 +1,35 @@
+from pyspark.sql import SparkSession
+import boto3
+import iceberg
+
+# Initialize SparkSession
+spark = SparkSession.builder \
+    .appName("Parquet to Iceberg") \
+    .getOrCreate()
+
+# Function to read Parquet file from S3 using boto3
+def read_parquet_from_s3(bucket_name, key):
+    s3 = boto3.client('s3')
+    obj = s3.get_object(Bucket=bucket_name, Key=key)
+    return spark.read.parquet(obj['Body'])
+
+# Function to write Iceberg table to S3 using boto3
+def write_iceberg_to_s3(iceberg_table, bucket_name, key):
+    iceberg_table.write().format("iceberg").mode("overwrite").save(f"s3a://{bucket_name}/{key}")
+
+# Specify your S3 bucket name and keys
+bucket_name = 'your_bucket_name'
+parquet_key = 'path/to/parquet_file.parquet'
+iceberg_key = 'path/to/iceberg_table'
+
+# Read Parquet file from S3
+parquet_df = read_parquet_from_s3(bucket_name, parquet_key)
+
+# Convert DataFrame to Iceberg table
+iceberg_table = iceberg.as_table(parquet_df)
+
+# Write Iceberg table back to S3
+write_iceberg_to_s3(iceberg_table, bucket_name, iceberg_key)
+
+# Stop SparkSession
+spark.stop()
