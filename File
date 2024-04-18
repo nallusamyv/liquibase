@@ -1,32 +1,36 @@
-import boto3
+import sys
+from awsglue.context import GlueContext
+from pyspark.context import SparkContext
 from pyspark.sql import SparkSession
 
-# Initialize SparkSession
-spark = SparkSession.builder \
-    .appName("ParquetToIceberg") \
-    .getOrCreate()
+# Initialize SparkContext, GlueContext, and SparkSession
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
 
-# Initialize Boto3 S3 client
-s3 = boto3.client('s3')
+try:
+    # Read Parquet file into a DataFrame
+    parquet_file_path = "s3://your-bucket/path/to/parquet-file/"
+    df = spark.read.parquet(parquet_file_path)
 
-# Read the Parquet file from S3 into a DataFrame
-s3_bucket = 'your-bucket-name'
-s3_key = 'path/to/parquet/file'
-parquet_df = spark.read.parquet(f"s3://{s3_bucket}/{s3_key}")
+    # Extract partition values (partition_date and context_key_id)
+    partition_values = df.select('partition_date', 'context_key_id').distinct().collect()
 
-# Infer the schema from the Parquet file
-parquet_schema = parquet_df.schema
+    # Construct partition columns string based on extracted values
+    partition_columns_str = ', '.join([f"{value['partition_date']} DATE, {value['context_key_id']} STRING" for value in partition_values])
 
-# Optionally, transform or filter the DataFrame as needed
-transformed_df = parquet_df
+    # Specify the S3 location for the Iceberg table
+    iceberg_location = 's3://your-bucket/path/to/iceberg-table/'
 
-# Write the DataFrame to Iceberg table
-output_path = 's3://your-bucket-name/path/to/iceberg-table'
-transformed_df.write \
-    .format("iceberg") \
-    .mode("overwrite") \  # Choose the mode based on your requirement
-    .option("schema", parquet_schema.json()) \
-    .save(output_path)
+    # Execute SQL command to create an Iceberg table with partitioning
+    spark.sql(f"""
+        CREATE TABLE IF NOT EXISTS glue_db.NewIcebergTable
+        USING iceberg
+        PARTITIONED BY ({partition_columns_str})
+        LOCATION '{iceberg_location}'
+    """)
 
-# Stop the SparkSession
-spark.stop()
+    print("Iceberg table created successfully!")
+except Exception as e:
+    print("Error:", e)
+    sys.exit(1)
