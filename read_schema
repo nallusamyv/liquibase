@@ -1,0 +1,51 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+from pyspark.sql.types import StructType
+import os
+
+def get_schema_differences(schema1, schema2):
+    diff_fields = set(schema1.fieldNames()) - set(schema2.fieldNames())
+    return [field for field in schema1.fields if field.name in diff_fields]
+
+def write_schema_differences_to_file(differences, output_file):
+    with open(output_file, 'w') as file:
+        for difference in differences:
+            file.write(f"{difference}\n")
+
+def main():
+    spark = SparkSession.builder \
+        .appName("ParquetSchemaComparison") \
+        .getOrCreate()
+
+    directory = "path_to_directory_containing_parquet_files"
+    output_dir = "output_directory"
+    schema_diff_file = os.path.join(output_dir, "schema_differences.txt")
+    partition_schema_file = os.path.join(output_dir, "partition_schema.txt")
+
+    parquet_files = [os.path.join(directory, file) for file in os.listdir(directory) if file.endswith(".parquet")]
+
+    all_schemas = {}
+
+    for file_path in parquet_files:
+        df = spark.read.parquet(file_path)
+        partition = os.path.basename(file_path).split('.')[0]  # Assuming filename as partition
+        schema = df.schema
+        partition_date, context_key = partition.split('_')  # Assuming partition format as 'partition_date_context_key'
+        
+        if (partition_date, context_key) not in all_schemas:
+            all_schemas[(partition_date, context_key)] = schema
+        else:
+            existing_schema = all_schemas[(partition_date, context_key)]
+            if existing_schema != schema:
+                differences = get_schema_differences(existing_schema, schema)
+                write_schema_differences_to_file(differences, schema_diff_file)
+
+    with open(partition_schema_file, 'w') as file:
+        for (partition_date, context_key), schema in all_schemas.items():
+            file.write(f"Partition Date: {partition_date}, Context Key: {context_key}\n")
+            file.write(f"{schema}\n\n")
+
+    spark.stop()
+
+if __name__ == "__main__":
+    main()
