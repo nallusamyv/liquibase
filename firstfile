@@ -1,3 +1,13 @@
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from pyspark.sql import SparkSession
+import json
+
+# Initialize SparkContext
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+
 # Read Parquet files from S3
 df = spark.read.parquet("s3://path/to/parquet/files/income_file/*/*")
 
@@ -7,7 +17,10 @@ for file_path in df.inputFiles():
     first_record_df = spark.read.parquet(file_path).limit(1)
     first_record_schema_details[file_path] = first_record_df.schema.json()
 
-# Write schema details to JSON files
+# Write schema details to JSON files in a separate directory within the same bucket
+output_folder = "s3://path/to/output/schema_details/"
 for file_path, schema_json in first_record_schema_details.items():
-    with open(f"{file_path}.json", "w") as f:
+    file_name = file_path.split("/")[-1]
+    json_output_path = f"{output_folder}{file_name}.json"
+    with open(json_output_path, "w") as f:
         json.dump(json.loads(schema_json), f, indent=4)
