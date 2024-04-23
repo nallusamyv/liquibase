@@ -1,7 +1,7 @@
 from pyspark.context import SparkContext
 from awsglue.context import GlueContext
 from pyspark.sql import SparkSession
-import json
+from pyspark.sql.functions import input_file_name, substring_index
 
 # Initialize SparkContext
 sc = SparkContext()
@@ -9,22 +9,29 @@ glueContext = GlueContext(sc)
 spark = glueContext.spark_session
 
 # Read Parquet files from S3
-df = spark.read.parquet("s3://path/to/parquet/files/income_file/*/*")
+df = spark.read.parquet("s3://path/to/parquet/files/income_file/*/*/")
 
-# Get the first record of each file and its schema
-first_record_schema_details = {}
-for file_path in df.inputFiles():
-    first_record_df = spark.read.parquet(file_path).limit(1)
-    partition_values = first_record_df.select("partition_date", "contxt_key_id").collect()[0]
-    partition_date = partition_values.partition_date
-    contxt_key_id = partition_values.contxt_key_id
-    schema_json = first_record_df.schema.json()
-    file_name = f"schema_details_{partition_date}_{contxt_key_id}.json"
-    first_record_schema_details[file_name] = schema_json
+# Extract partition values from file paths
+df = df.withColumn("partition_date", substring_index(substring_index(input_file_name(), "/", -2), "=", -1))
+df = df.withColumn("cnt_id", substring_index(substring_index(input_file_name(), "/", -1), "=", -1))
 
-# Write schema details to JSON files with names based on partition values
-output_folder = "s3://path/to/output/schema_details/"
-for file_name, schema_json in first_record_schema_details.items():
-    json_output_path = f"{output_folder}{file_name}"
-    with open(json_output_path, "w") as f:
-        json.dump(json.loads(schema_json), f, indent=4)
+# Get distinct partition values
+partitions = df.select("partition_date", "cnt_id").distinct().collect()
+
+# Iterate over each partition and write schema details to separate CSV files
+for partition in partitions:
+    partition_date = partition.partition_date
+    cnt_id = partition.cnt_id
+    
+    # Filter DataFrame by partition
+    partition_df = df.filter((col("partition_date") == partition_date) & (col("cnt_id") == cnt_id))
+    
+    # Get schema details
+    schema_details = [(field.name, field.dataType.simpleString()) for field in partition_df.schema.fields]
+    
+    # Write schema details to CSV file
+    csv_path = f"s3://path/to/output/schema_details/{partition_date}_{cnt_id}_schema.csv"
+    with open(csv_path, "w") as f:
+        f.write("Field Name,Data Type\n")
+        for field_name, data_type in schema_details:
+            f.write(f"{field_name},{data_type}\n")
