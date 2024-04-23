@@ -1,9 +1,4 @@
- # Construct CSV file name with partition_date and cnt_id
-    csv_filename = f"{partition_date}_{cnt_id}_schema.csv"
-    
-    # Write schema details to CSV file
-    csv_path = f"s3://path/to/output/schema_details/{csv_filename}"
     with open(csv_path, "w", newline="") as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, delimiter='|')
         writer.writerow(["Field Name", "Data Type"])
         writer.writerows(schema_details)
