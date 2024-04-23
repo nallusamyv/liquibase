@@ -1,26 +1,12 @@
-from pyspark.context import SparkContext
-from awsglue.context import GlueContext
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
-
-# Initialize SparkContext
-sc = SparkContext()
-glueContext = GlueContext(sc)
-spark = glueContext.spark_session
-
-# Read Parquet files from S3 with partitions
 df = spark.read.parquet("s3://path/to/parquet/files/income_file/*/*")
 
 # Get distinct schemas
 schemas = df.schema
 
-# Iterate over each partition and write schema details to separate files
-for partition_name in df.select("part_date", "cont_id").distinct().collect():
-    partition_df = df.filter((col("part_date") == partition_name.part_date) & (col("cont_id") == partition_name.cont_id))
-    schema_details = {}
-    schema_details["partition_name"] = (partition_name.part_date, partition_name.cont_id)
-    schema_details["schema"] = partition_df.schema.json()
+# Write schema details to a single file
+schema_details = {}
+schema_details["schema"] = df.schema.json()
 
-    # Write schema details to file
-    partition_schema_df = spark.createDataFrame([schema_details])
-    partition_schema_df.write.mode("overwrite").parquet(f"s3://path/to/output/schema_details/partition_{partition_name.part_date}_{partition_name.cont_id}")
+# Write schema details to file
+schema_df = spark.createDataFrame([schema_details])
+schema_df.write.mode("overwrite").parquet("s3://path/to/output/schema_details")
