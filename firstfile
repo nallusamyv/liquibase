@@ -1,7 +1,10 @@
+from datetime import datetime
+
 # Get the current timestamp
-timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+current_time = datetime.now()
+
+# Format the timestamp
+timestamp = current_time.strftime("%Y%m%d%H%M%S")
 
 # Example filename with timestamp
 filename = f"file_{timestamp}.txt"
-
-print(filename)  # Output: "file_20220423123045.txt" (if the current date and time is April 23, 2022, 12:30:45)
