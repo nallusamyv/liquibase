@@ -1,12 +1,13 @@
+# Read Parquet files from S3
 df = spark.read.parquet("s3://path/to/parquet/files/income_file/*/*")
 
-# Get distinct schemas
-schemas = df.schema
+# Get the first record of each file and its schema
+first_record_schema_details = {}
+for file_path in df.inputFiles():
+    first_record_df = spark.read.parquet(file_path).limit(1)
+    first_record_schema_details[file_path] = first_record_df.schema.json()
 
-# Write schema details to a single file
-schema_details = {}
-schema_details["schema"] = df.schema.json()
-
-# Write schema details to file
-schema_df = spark.createDataFrame([schema_details])
-schema_df.write.mode("overwrite").parquet("s3://path/to/output/schema_details")
+# Write schema details to JSON files
+for file_path, schema_json in first_record_schema_details.items():
+    with open(f"{file_path}.json", "w") as f:
+        json.dump(json.loads(schema_json), f, indent=4)
