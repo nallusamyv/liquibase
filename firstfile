@@ -14,13 +14,32 @@ df = spark.read.parquet("s3://path/to/parquet/files/income_file")
 # Get distinct schemas
 schemas = df.schema
 
-# Compare schemas
-schema_differences = []
-for schema in schemas:
-    # Assuming you have a reference schema, you can compare against it
-    if schema != reference_schema:
-        schema_differences.append(schema)
+# Collect all distinct column names from all partitions
+all_columns = set()
+for partition_name in df.select("partition_date", "contx_id").distinct().collect():
+    partition_df = df.filter((col("partition_date") == partition_name.partition_date) & (col("contx_id") == partition_name.contx_id))
+    partition_columns = set(partition_df.columns)
+    all_columns.update(partition_columns)
 
-# Write schema differences to another S3 file
-schema_diff_df = spark.createDataFrame(schema_differences)
+# Write schema details of each partition to separate files
+for partition_name in df.select("partition_date", "contx_id").distinct().collect():
+    partition_df = df.filter((col("partition_date") == partition_name.partition_date) & (col("contx_id") == partition_name.contx_id))
+    schema_details = {}
+    schema_details["partition_name"] = (partition_name.partition_date, partition_name.contx_id)
+    schema_details["schema"] = partition_df.schema.json()
+
+    # Write schema details to file
+    partition_schema_df = spark.createDataFrame([schema_details])
+    partition_schema_df.write.mode("overwrite").parquet(f"s3://path/to/output/schema_details/partition_{partition_name.partition_date}_{partition_name.contx_id}")
+
+# Identify schema differences across partitions
+schema_differences = {}
+for partition_name in df.select("partition_date", "contx_id").distinct().collect():
+    partition_df = df.filter((col("partition_date") == partition_name.partition_date) & (col("contx_id") == partition_name.contx_id))
+    partition_columns = set(partition_df.columns)
+    partition_schema_diff = partition_columns.symmetric_difference(all_columns)
+    schema_differences[(partition_name.partition_date, partition_name.contx_id)] = list(partition_schema_diff)
+
+# Write schema differences to another file
+schema_diff_df = spark.createDataFrame(schema_differences.items(), ["partition_name", "schema_difference"])
 schema_diff_df.write.mode("overwrite").parquet("s3://path/to/output/schema_differences")
