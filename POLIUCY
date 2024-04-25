@@ -1,2 +1,25 @@
+-- Query to monitor warehouse usage per user
+SELECT 
+  user_name,
+  warehouse_name,
+  SUM(queued_executions) as total_queued_executions,
+  SUM(running_executions) as total_running_executions,
+  SUM(queued_time) as total_queued_time,
+  SUM(running_time) as total_running_time
+FROM 
+  information_schema.warehouse_metering_history
+GROUP BY 
+  user_name,
+  warehouse_name;
 
-In a recent discussion with the Immuta team regarding masking policies, it was advised that default values for masking should be applied only to text (varchar) fields. For other data types, particularly numeric and date fields, they don't recommend setting default values due to potential complications. It's important for business users to be aware of the fields they have access to; querying fields they don't have access to, as is the case in Teradata, can result in errors.
+-- Check if any user is consistently reaching 80% utilization for their warehouse
+-- If yes, resize the warehouse for that user
+IF EXISTS (
+  SELECT 1
+  FROM information_schema.warehouse_metering_history
+  WHERE user_name = 'desired_user'
+  AND total_running_time / (total_running_time + total_queued_time) > 0.8
+) THEN
+  ALTER WAREHOUSE user_specific_warehouse
+  SET WAREHOUSE_SIZE = 'desired_size'; -- Example resizing command with predefined size name
+END IF;
