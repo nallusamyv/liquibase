@@ -1,27 +1,2 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import expr
-from org.apache.iceberg.spark import SparkCatalog
-
-# Initialize Spark session
-spark = SparkSession.builder.appName("ConvertToIcebergTable").getOrCreate()
-
-# Specify S3 path to your Parquet files
-s3_path = "s3://bucket1/partition1/partition2"
-
-# Read Parquet files into a Spark DataFrame with partitioning
-parquet_df = spark.read.option("basePath", s3_path).parquet(s3_path)
-
-# Iceberg catalog configuration
-iceberg_catalog_path = "s3://your_iceberg_catalog_path"  # Specify the S3 path for the Iceberg catalog
-
-# Create Spark catalog for Iceberg
-spark.catalog.unregisterAll()  # Unregister existing tables
-spark.conf.set("spark.sql.catalog.iceberg", "org.apache.iceberg.spark.SparkCatalog")
-spark.conf.set("spark.sql.catalog.iceberg.warehouse", iceberg_catalog_path)
-
-# Convert the Spark DataFrame to an Iceberg table
-table_name = "your_iceberg_table_name"
-parquet_df.writeTo(f"iceberg.{table_name}").append()
-
-# Stop the Spark session
-spark.stop()
+User
+I joined ABC about 8 months back and my son is studying 9th grade. I would like to know any studcent program or internship program available in our organization to get enrolled. He is interested in both IT and Finance area.  So i would like to check.  Please rewrod
