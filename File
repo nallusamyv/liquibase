@@ -1,36 +1,9 @@
-import sys
-from awsglue.context import GlueContext
-from pyspark.context import SparkContext
-from pyspark.sql import SparkSession
 
-# Initialize SparkContext, GlueContext, and SparkSession
-sc = SparkContext()
-glueContext = GlueContext(sc)
-spark = glueContext.spark_session
+In our project, we aim to utilize external tables for accessing S3 files and presenting them to users. Currently, there's no disaster recovery mechanism in place, and it's solely applicable to permanent tables. Additionally, our account spans both the us-east-1 and us-west-1 regions.
 
-try:
-    # Read Parquet file into a DataFrame
-    parquet_file_path = "s3://your-bucket/path/to/parquet-file/"
-    df = spark.read.parquet(parquet_file_path)
+Queries regarding Snowflake resiliency:
 
-    # Extract partition values (partition_date and context_key_id)
-    partition_values = df.select('partition_date', 'context_key_id').distinct().collect()
-
-    # Construct partition columns string based on extracted values
-    partition_columns_str = ', '.join([f"{value['partition_date']} DATE, {value['context_key_id']} STRING" for value in partition_values])
-
-    # Specify the S3 location for the Iceberg table
-    iceberg_location = 's3://your-bucket/path/to/iceberg-table/'
-
-    # Execute SQL command to create an Iceberg table with partitioning
-    spark.sql(f"""
-        CREATE TABLE IF NOT EXISTS glue_db.NewIcebergTable
-        USING iceberg
-        PARTITIONED BY ({partition_columns_str})
-        LOCATION '{iceberg_location}'
-    """)
-
-    print("Iceberg table created successfully!")
-except Exception as e:
-    print("Error:", e)
-    sys.exit(1)
+If the AWS account in us-east-1 experiences downtime, does this imply that the Snowflake account in the same region is also affected? If not, kindly provide insights into how it functions.
+Assuming the Snowflake account is not affected by the downtime in us-east-1, should stages be created for both us-east-1 and us-west-1? In the event of one region's failure, the stage would need to be switched to the alternative region.
+Could you offer guidance on Snowflake's recommendations for enhancing external table resilience (DR)?
+Regarding end-user experience, would it be feasible to develop a script that automatically switches to an alternative region without explicitly informing users of the connected region? This approach would enable seamless transition to the other region in case of a downtime event.
