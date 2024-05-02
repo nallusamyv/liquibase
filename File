@@ -1,9 +1,52 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+from pyspark.sql.types import StructType
 
-In our project, we aim to utilize external tables for accessing S3 files and presenting them to users. Currently, there's no disaster recovery mechanism in place, and it's solely applicable to permanent tables. Additionally, our account spans both the us-east-1 and us-west-1 regions.
+# Initialize SparkSession
+spark = SparkSession.builder \
+    .appName("Read Parquet, Extract Schema, Write to Iceberg") \
+    .config("spark.jars", "/path/to/iceberg-core.jar,/path/to/iceberg-spark3.jar") \
+    .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkCatalog") \
+    .getOrCreate()
 
-Queries regarding Snowflake resiliency:
+# Required libraries for Iceberg
+spark._jvm.org.apache.hadoop.hive.conf.HiveConf()
+spark._jvm.org.apache.hadoop.hive.ql.metadata.Hive.registerAllFunctions()
 
-If the AWS account in us-east-1 experiences downtime, does this imply that the Snowflake account in the same region is also affected? If not, kindly provide insights into how it functions.
-Assuming the Snowflake account is not affected by the downtime in us-east-1, should stages be created for both us-east-1 and us-west-1? In the event of one region's failure, the stage would need to be switched to the alternative region.
-Could you offer guidance on Snowflake's recommendations for enhancing external table resilience (DR)?
-Regarding end-user experience, would it be feasible to develop a script that automatically switches to an alternative region without explicitly informing users of the connected region? This approach would enable seamless transition to the other region in case of a downtime event.
+# Read data from S3 Parquet files with partition columns
+s3_bucket = "s3://your-bucket-name/"
+parquet_file_path = "elig_file"
+df = spark.read.parquet(s3_bucket + parquet_file_path)
+
+# Extract schema
+schema = df.schema
+
+# Iceberg specific imports
+from org.apache.iceberg.catalog import Catalog
+from org.apache.iceberg.spark.SparkCatalog import SparkCatalog
+from org.apache.iceberg.PartitionSpec import builder
+
+# Iceberg catalog configuration
+iceberg_catalog_name = "my_iceberg_catalog"
+iceberg_table_name = "my_iceberg_table"
+
+# Create Iceberg catalog
+iceberg_catalog = SparkCatalog(spark.sparkContext().getConf())
+
+# Define Iceberg table schema
+iceberg_schema = StructType.fromJson(schema.json())
+
+# Define partitioning scheme
+partition_spec = builder().identity("part_dt").identity("con_id").build()
+
+# Create Iceberg table
+iceberg_catalog.createTable(iceberg_catalog_name, iceberg_table_name, iceberg_schema, partition_spec)
+print("Iceberg table created successfully.")
+
+# Display the schema of the Iceberg table
+iceberg_table = iceberg_catalog.loadTable(iceberg_catalog_name, iceberg_table_name)
+print("Schema of Iceberg table:")
+iceberg_table.schema().asStruct().treeString()
+
+# Stop SparkSession
+spark.stop()
