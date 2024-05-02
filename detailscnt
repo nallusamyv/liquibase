@@ -1,3 +1,6 @@
+num_times = 5  # Number of times to concatenate
+concatenated_df = pd.concat([df.copy() for _ in range(num_times)], ignore_index=True)
+
 from awsglue.context import GlueContext
 from awsglue.utils import getResolvedOptions
 
