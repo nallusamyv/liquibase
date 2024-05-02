@@ -1,5 +1,4 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
 from pyspark.sql.types import StructType
 
 # Initialize SparkSession
@@ -14,8 +13,8 @@ spark._jvm.org.apache.hadoop.hive.conf.HiveConf()
 spark._jvm.org.apache.hadoop.hive.ql.metadata.Hive.registerAllFunctions()
 
 # Read data from S3 Parquet files with partition columns
-s3_bucket = "s3://your-bucket-name/"
-parquet_file_path = "elig_file"
+s3_bucket = "s3://bucket_name/"
+parquet_file_path = "abc/bcd/elig_file"
 df = spark.read.parquet(s3_bucket + parquet_file_path)
 
 # Extract schema
@@ -39,14 +38,20 @@ iceberg_schema = StructType.fromJson(schema.json())
 # Define partitioning scheme
 partition_spec = builder().identity("part_dt").identity("con_id").build()
 
-# Create Iceberg table
-iceberg_catalog.createTable(iceberg_catalog_name, iceberg_table_name, iceberg_schema, partition_spec)
-print("Iceberg table created successfully.")
+# Create Iceberg table if not exists
+if not iceberg_catalog.tableExists(iceberg_catalog_name, iceberg_table_name):
+    iceberg_catalog.createTable(iceberg_catalog_name, iceberg_table_name, iceberg_schema, partition_spec)
+    print("Iceberg table created successfully.")
+else:
+    print("Iceberg table already exists. Skipping table creation.")
 
-# Display the schema of the Iceberg table
+# Load data into Iceberg table
 iceberg_table = iceberg_catalog.loadTable(iceberg_catalog_name, iceberg_table_name)
-print("Schema of Iceberg table:")
-iceberg_table.schema().asStruct().treeString()
+df.writeTo(iceberg_table).append()
+
+# Write Iceberg table to S3
+iceberg_table_location = "s3://bucket_name/path/to/store/table"
+iceberg_table.updateProperties({"write.location": iceberg_table_location})
 
 # Stop SparkSession
 spark.stop()
