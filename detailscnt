@@ -1,4 +1,35 @@
-Implementation of 5 tables in production to validate production Jules pipeline functionality for the first release this weekend.
-Terraform script development ongoing for inclusion of batch audit table.
-CAS request initiation dependent on batch team's completion of S3 file configuration adjustments.
-Integration timeline aligned with batch team's schedule.
+from awsglue.context import GlueContext
+from awsglue.utils import getResolvedOptions
+
+# Initialize GlueContext
+glueContext = GlueContext(spark.sparkContext)
+
+# Get Glue job parameters
+args = getResolvedOptions(sys.argv, ['JOB_NAME'])
+
+# Define the database and table names
+database_name = "your_database"
+source_table_name = "your_source_table"
+iceberg_table_name = "your_existing_iceberg_table"
+
+# Check if Iceberg table exists in Glue catalog
+if glueContext.catalog.tableExists(database_name, iceberg_table_name):
+    # Append data to the existing Iceberg table using SQL
+    spark.sql("""
+        INSERT INTO TABLE {}.{} 
+        SELECT * FROM {}.{}
+    """.format(database_name, iceberg_table_name, database_name, source_table_name))
+
+    print("Appended data to existing Iceberg table:", iceberg_table_name)
+
+else:
+    # Create new Iceberg table using SQL
+    spark.sql("""
+        CREATE TABLE {}.{} AS 
+        SELECT * FROM {}.{}
+    """.format(database_name, iceberg_table_name, database_name, source_table_name))
+
+    print("Created new Iceberg table:", iceberg_table_name)
+
+# Stop SparkSession
+spark.stop()
