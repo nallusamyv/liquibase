@@ -1,52 +1,9 @@
-resource "snowflake_task" "refresh_external_tables_in_schema" {
-  name      = "refresh_external_tables_in_schema_task"
-  warehouse = "your_warehouse"
-  schedule  = "5 minutes" # Schedule the task to run every 5 minutes
+from pyspark.sql import SparkSession
 
-  sql_statement = <<-EOT
-    CALL refresh_external_tables_in_schema();
-  EOT
-}
-
-resource "snowflake_stored_procedure" "refresh_external_tables_in_schema" {
-  name = "refresh_external_tables_in_schema"
-  database = "your_database"
-  schema = "your_schema"
-  arguments = []
-  returns = null
-  api_integration = null
-
-  code = <<-EOF
-    CREATE OR REPLACE PROCEDURE refresh_external_tables_in_schema()
-    RETURNS STRING
-    LANGUAGE JAVASCRIPT
-    AS
-    $$
-    var schema_name = 'YOUR_SCHEMA';
-    var sql_command = '';
-    var sql_result = '';
-
-    // Get list of external tables in the schema
-    var get_tables_query = `
-      SELECT TABLE_NAME
-      FROM INFORMATION_SCHEMA.TABLES
-      WHERE TABLE_SCHEMA = '${schema_name}' AND TABLE_TYPE = 'EXTERNAL'
-    `;
-    var stmt = snowflake.createStatement({sqlText: get_tables_query});
-    var tables_result = stmt.execute();
-    
-    // Iterate through external tables and refresh each one
-    while (tables_result.next()) {
-      var table_name = tables_result.getColumnValue('TABLE_NAME');
-      sql_command = "ALTER EXTERNAL TABLE " + schema_name + "." + table_name + " REFRESH;";
-      try {
-        snowflake.execute({ sqlText: sql_command });
-        sql_result += "External table " + schema_name + "." + table_name + " refreshed successfully.\n";
-      } catch (err) {
-        sql_result += "Error refreshing external table " + schema_name + "." + table_name + ": " + err + "\n";
-      }
-    }
-    return sql_result;
-    $$;
-  EOF
-}
+# Create SparkSession
+spark = SparkSession.builder \
+    .appName("S3 Example") \
+    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+    .config("spark.hadoop.fs.s3a.access.key", "<your-access-key>") \
+    .config("spark.hadoop.fs.s3a.secret.key", "<your-secret-key>") \
+    .getOrCreate()
