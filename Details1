@@ -1,36 +1,27 @@
-import boto3
-from pyarrow import fs
-from iceberg.api.types import Types
-from iceberg.api import IcebergTable
-from iceberg.api.io import FileFormat
-from iceberg.aws.s3 import S3FileIO
+from pyspark.sql import SparkSession
 
-# Initialize S3 client
-s3 = boto3.client('s3')
+# Initialize Spark session
+spark = SparkSession.builder \
+    .appName("ParquetToIceberg") \
+    .config("spark.jars.packages", "org.apache.iceberg:iceberg-spark3-runtime:0.14.1") \
+    .getOrCreate()
 
-# S3 bucket and prefix where Parquet files are stored
-s3_bucket = 'your-s3-bucket'
-s3_prefix = 'path/to/parquet/files'
+# Read Parquet files from S3
+df = spark.read.parquet("s3a://your-s3-bucket/path/to/parquet")
 
-# Read Parquet files directly from S3
-parquet_files = f"s3://{s3_bucket}/{s3_prefix}"
-table = pq.read_table(parquet_files)
-
-# Define partition columns
+# Define the partition columns
 partition_columns = ['part_yr', 'partition_date']
 
-# Create Iceberg Table with partitioning
-iceberg_path = 's3://your-iceberg-bucket/path/to/iceberg/table'
-iceberg_table = IcebergTable.create(
-    spec=iceberg_path,
-    schema=Types.StructType(),
-    format=FileFormat.PARQUET,
-    partition_spec=partition_columns  # Specify partition columns here
-)
+# Write data to Iceberg table on S3 using SQL
+spark.sql(f"""
+    CREATE TABLE IF NOT EXISTS iceberg_table
+    USING iceberg
+    PARTITIONED BY ({', '.join(partition_columns)})
+    LOCATION 's3a://your-iceberg-bucket/path/to/iceberg_table'
+    AS
+    SELECT *
+    FROM parquet_data
+""")
 
-# Write data from Parquet files to Iceberg table
-with iceberg_table.new_append() as append:
-    append.write(table)
-
-# Commit the changes
-iceberg_table.refresh()
+# Stop Spark session
+spark.stop()
