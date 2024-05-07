@@ -1,1 +1,5 @@
+I have Parquet files stored in an S3 bucket, organized into partitioned folders based on year and date. While Snowflake can infer the schema from these files, it doesn't automatically recognize the partitioned folders. I've managed to add the partition columns part_yr and partition_dt to the external table using the ALTER statement.
 
+However, I'm encountering difficulty adding partitioning to the table using the ALTER statement. I believe there might be a workaround or alternative solution that Snowflake offers to enable partitioning for external tables based on Parquet files.
+
+Could you please liaise with the Snowflake product team to explore potential solutions or workarounds for this issue? Thank you
