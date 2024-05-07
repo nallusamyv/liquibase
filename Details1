@@ -1,5 +1,36 @@
-I have Parquet files stored in an S3 bucket, organized into partitioned folders based on year and date. While Snowflake can infer the schema from these files, it doesn't automatically recognize the partitioned folders. I've managed to add the partition columns part_yr and partition_dt to the external table using the ALTER statement.
+import boto3
+from pyarrow import fs
+from iceberg.api.types import Types
+from iceberg.api import IcebergTable
+from iceberg.api.io import FileFormat
+from iceberg.aws.s3 import S3FileIO
 
-However, I'm encountering difficulty adding partitioning to the table using the ALTER statement. I believe there might be a workaround or alternative solution that Snowflake offers to enable partitioning for external tables based on Parquet files.
+# Initialize S3 client
+s3 = boto3.client('s3')
 
-Could you please liaise with the Snowflake product team to explore potential solutions or workarounds for this issue? Thank you
+# S3 bucket and prefix where Parquet files are stored
+s3_bucket = 'your-s3-bucket'
+s3_prefix = 'path/to/parquet/files'
+
+# Read Parquet files directly from S3
+parquet_files = f"s3://{s3_bucket}/{s3_prefix}"
+table = pq.read_table(parquet_files)
+
+# Define partition columns
+partition_columns = ['part_yr', 'partition_date']
+
+# Create Iceberg Table with partitioning
+iceberg_path = 's3://your-iceberg-bucket/path/to/iceberg/table'
+iceberg_table = IcebergTable.create(
+    spec=iceberg_path,
+    schema=Types.StructType(),
+    format=FileFormat.PARQUET,
+    partition_spec=partition_columns  # Specify partition columns here
+)
+
+# Write data from Parquet files to Iceberg table
+with iceberg_table.new_append() as append:
+    append.write(table)
+
+# Commit the changes
+iceberg_table.refresh()
