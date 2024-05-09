@@ -1,6 +1,35 @@
-       filtered_table = table.filter((table['partition_dt'] == partition_dt) & (table['contxt_id'] == contxt_id))
-        num_rows = filtered_table.num_rows
-        num_files = min(max(num_rows // rows_per_file, min_files_per_partition), max_files_per_partition)
-        rows_per_file = num_rows // num_files
-        chunks = [filtered_table[i:i+rows_per_file] for i in range(0, num_rows, rows_per_file)]
-        
+import boto3
+import pyarrow.parquet as pq
+from io import BytesIO
+
+# Initialize boto3 client
+s3 = boto3.client('s3')
+
+# Define the bucket and root prefix containing the partitioned fields
+bucket_name = 'your-bucket-name'
+root_prefix = 'path/to/your/parquet/'
+
+# Function to recursively list objects in a prefix
+def list_objects(bucket, prefix):
+    response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+    for obj in response.get('Contents', []):
+        key = obj['Key']
+        if key.endswith('/'):
+            yield from list_objects(bucket, key)
+        else:
+            yield key
+
+# Iterate over each partition_date subfolder
+for partition_date in list_objects(bucket_name, root_prefix):
+    # Iterate over each contxt_key_id subfolder within partition_date
+    for contxt_key_id in list_objects(bucket_name, partition_date):
+        # Iterate over each Parquet file in the subfolder
+        for key in list_objects(bucket_name, contxt_key_id):
+            # Download the Parquet file from S3 to a buffer
+            response = s3.get_object(Bucket=bucket_name, Key=key)
+            parquet_data = response['Body'].read()
+            # Convert the Parquet data in memory to a PyArrow Table
+            parquet_buffer = BytesIO(parquet_data)
+            table = pq.read_table(parquet_buffer)
+            # Now you can work with the PyArrow Table 'table'
+            print(table)
