@@ -1,17 +1,18 @@
 import pyarrow.parquet as pq
+import s3fs
 
 # Define the S3 filesystem and root directory
-s3 = fs = s3fs.S3FileSystem()
+s3 = s3fs.S3FileSystem()
 root_dir = 's3://your-bucket-name/path/to/your/parquet/'
 
-# Define partition keys
-partition_keys = ['partition_date', 'contxt_key_id']
+# Define the partition keys
+partition_keys = ['partition_dt', 'contxt_id']
 
 # Create ParquetDataset
 dataset = pq.ParquetDataset(root_dir, filesystem=s3, partitioning=partition_keys)
 
-# Read the dataset as a PyArrow Table
-table = dataset.read()
+# Get the schema of the dataset
+schema = dataset.schema
 
-# Now you can work with the PyArrow Table 'table'
-print(table)
+# Now you can work with the schema
+print(schema)
