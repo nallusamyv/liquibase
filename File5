@@ -1,42 +1,43 @@
-import pyarrow as pa
 import pyarrow.parquet as pq
 import os
 import random
 import faker
+import s3fs
 
 # Initialize Faker library for generating fake data
 fake = faker.Faker()
-
-# Read the Parquet file
-table = pq.read_table('fake_data.parquet')
 
 # Define the number of partitions and files per partition
 num_partitions = 8
 files_per_partition = 3
 
-# Define the output directory
-output_dir = 'output'
+# Initialize s3fs instance for interacting with S3
+s3 = s3fs.S3FileSystem()
 
 # Iterate over partitions
 for partition_index in range(num_partitions):
     # Generate partition_dt (random date in YYYYMMDD format)
     partition_dt = fake.date_between(start_date='-30d', end_date='today').strftime('%Y%m%d')
     
-    # Create partition directory if not exists
-    partition_dir = os.path.join(output_dir, f'partition_dt={partition_dt}')
-    os.makedirs(partition_dir, exist_ok=True)
-    
     # Iterate over contxt_id within each partition
     for _ in range(8):
         # Generate random contxt_id (10 digits)
         contxt_id = str(random.randint(1000000000, 9999999999))
         
-        # Create contxt_id directory if not exists
-        contxt_id_dir = os.path.join(partition_dir, f'contxt_id={contxt_id}')
-        os.makedirs(contxt_id_dir, exist_ok=True)
+        # Create Parquet file writer for this partition
+        partition_writer = pq.ParquetWriter(
+            f's3://your-bucket-name/output/partition_dt={partition_dt}/contxt_id={contxt_id}/',
+            compression='snappy',
+            filesystem=s3
+        )
         
-        # Write files_per_partition number of Parquet files with SNAPPY compression
+        # Write files_per_partition number of Parquet files
         for file_index in range(files_per_partition):
-            file_name = f'part{file_index+1}.snappy.parquet'
-            file_path = os.path.join(contxt_id_dir, file_name)
-            pq.write_table(table, file_path, compression='snappy')
+            # Generate file name
+            file_name = f'part{file_index+1}.parquet'
+            
+            # Write data to the Parquet file
+            partition_writer.write_table(table)
+        
+        # Close the Parquet writer for this partition
+        partition_writer.close()
