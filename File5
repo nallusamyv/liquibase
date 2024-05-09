@@ -1,21 +1,7 @@
-    for _ in range(8):
-        # Generate random contxt_id (10 digits)
-        contxt_id = str(random.randint(1000000000, 9999999999))
-        
-        # Define the file path for this partition
-        file_path = f's3://your-bucket-name/output/partition_dt={partition_dt}/contxt_id={contxt_id}/part.parquet'
-        
-        # Filter the table for the current partition_dt and contxt_id
-        filtered_table = table.filter((table['partition_dt'] == partition_dt) & (table['contxt_id'] == contxt_id))
-        
-        # Get the number of rows in the filtered table
-        num_rows = filtered_table.num_rows
-        
-        # Calculate the number of rows per file
+        # Split the table into smaller chunks
+        num_rows = table.num_rows
         rows_per_file = num_rows // files_per_partition
-        
-        # Split the filtered table into smaller chunks
-        chunks = [filtered_table[i:i+rows_per_file] for i in range(0, num_rows, rows_per_file)]
+        chunks = [table[i:i+rows_per_file] for i in range(0, num_rows, rows_per_file)]
         
         # Write each chunk as a separate Parquet file
         for i, chunk in enumerate(chunks):
