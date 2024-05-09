@@ -1,3 +1,18 @@
+for partition_index in range(num_partitions):
+    # Generate partition_dt (random date in YYYYMMDD format)
+    partition_dt = fake.date_between(start_date='-30d', end_date='today').strftime('%Y%m%d')
+    
+    # Iterate over contxt_id within each partition
+    for _ in range(8):
+        # Generate random contxt_id (10 digits)
+        contxt_id = str(random.randint(1000000000, 9999999999))
+        
+        # Define the file path for this partition
+        file_path = f's3://your-bucket-name/output/partition_dt={partition_dt}/contxt_id={contxt_id}/part.parquet'
+        
+        # Write the Parquet file to S3
+        pq.write_table(table, file_path, compression='snappy', filesystem=s3)
+
 import pyarrow.parquet as pq
 import os
 import random
