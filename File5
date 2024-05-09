@@ -1,11 +1,6 @@
-        # Split the table into smaller chunks
-        num_rows = table.num_rows
-        rows_per_file = num_rows // files_per_partition
-        chunks = [table[i:i+rows_per_file] for i in range(0, num_rows, rows_per_file)]
+       filtered_table = table.filter((table['partition_dt'] == partition_dt) & (table['contxt_id'] == contxt_id))
+        num_rows = filtered_table.num_rows
+        num_files = min(max(num_rows // rows_per_file, min_files_per_partition), max_files_per_partition)
+        rows_per_file = num_rows // num_files
+        chunks = [filtered_table[i:i+rows_per_file] for i in range(0, num_rows, rows_per_file)]
         
-        # Write each chunk as a separate Parquet file
-        for i, chunk in enumerate(chunks):
-            file_name = f'part{i+1}.parquet'
-            file_path_with_name = f'{file_path}/{file_name}'
-            with s3.open(file_path_with_name, 'wb') as f:
-                pq.write_table(chunk, f, compression='snappy')
