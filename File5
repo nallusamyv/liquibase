@@ -1,6 +1,42 @@
-Following our previous discussions, an issue has arisen where creating an access role and granting access to a functional role within the same module has led to unexpected errors. Although according to Terraform Enterprise (TFE) guidelines, this approach is acceptable, the issue persists. After discussions with the Professional Services (PS) team, it has been suggested to first create the access role and subsequently grant access to the functional role.
+import pyarrow as pa
+import pyarrow.parquet as pq
+import os
+import random
+import faker
 
-Notably, this issue has not been encountered in the lower region. Attempts to replicate the issue in the lower region have been made, but difficulties in removing the access role have arisen. The PS team is actively investigating this matter.
+# Initialize Faker library for generating fake data
+fake = faker.Faker()
 
-To proceed temporarily, the plan is to create the access role first and then grant access. This approach will be implemented until further resolution is reached.
-In my personal opinion, Terraform may not be the most suitable choice for our implementation. I have concerns that accidental deletion of Terraform code could lead to the unintended destruction of tables or views. I believe that Liquibase would be a better fit for managing this process.
+# Read the Parquet file
+table = pq.read_table('fake_data.parquet')
+
+# Define the number of partitions and files per partition
+num_partitions = 8
+files_per_partition = 3
+
+# Define the output directory
+output_dir = 'output'
+
+# Iterate over partitions
+for partition_index in range(num_partitions):
+    # Generate partition_dt (random date in YYYYMMDD format)
+    partition_dt = fake.date_between(start_date='-30d', end_date='today').strftime('%Y%m%d')
+    
+    # Create partition directory if not exists
+    partition_dir = os.path.join(output_dir, f'partition_dt={partition_dt}')
+    os.makedirs(partition_dir, exist_ok=True)
+    
+    # Iterate over contxt_id within each partition
+    for _ in range(8):
+        # Generate random contxt_id (10 digits)
+        contxt_id = str(random.randint(1000000000, 9999999999))
+        
+        # Create contxt_id directory if not exists
+        contxt_id_dir = os.path.join(partition_dir, f'contxt_id={contxt_id}')
+        os.makedirs(contxt_id_dir, exist_ok=True)
+        
+        # Write files_per_partition number of Parquet files with SNAPPY compression
+        for file_index in range(files_per_partition):
+            file_name = f'part{file_index+1}.snappy.parquet'
+            file_path = os.path.join(contxt_id_dir, file_name)
+            pq.write_table(table, file_path, compression='snappy')
