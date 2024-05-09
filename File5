@@ -1,3 +1,4 @@
+# Iterate over partitions
 for partition_index in range(num_partitions):
     # Generate partition_dt (random date in YYYYMMDD format)
     partition_dt = fake.date_between(start_date='-30d', end_date='today').strftime('%Y%m%d')
@@ -11,48 +12,5 @@ for partition_index in range(num_partitions):
         file_path = f's3://your-bucket-name/output/partition_dt={partition_dt}/contxt_id={contxt_id}/part.parquet'
         
         # Write the Parquet file to S3
-        pq.write_table(table, file_path, compression='snappy', filesystem=s3)
-
-import pyarrow.parquet as pq
-import os
-import random
-import faker
-import s3fs
-
-# Initialize Faker library for generating fake data
-fake = faker.Faker()
-
-# Define the number of partitions and files per partition
-num_partitions = 8
-files_per_partition = 3
-
-# Initialize s3fs instance for interacting with S3
-s3 = s3fs.S3FileSystem()
-
-# Iterate over partitions
-for partition_index in range(num_partitions):
-    # Generate partition_dt (random date in YYYYMMDD format)
-    partition_dt = fake.date_between(start_date='-30d', end_date='today').strftime('%Y%m%d')
-    
-    # Iterate over contxt_id within each partition
-    for _ in range(8):
-        # Generate random contxt_id (10 digits)
-        contxt_id = str(random.randint(1000000000, 9999999999))
-        
-        # Create Parquet file writer for this partition
-        partition_writer = pq.ParquetWriter(
-            f's3://your-bucket-name/output/partition_dt={partition_dt}/contxt_id={contxt_id}/',
-            compression='snappy',
-            filesystem=s3
-        )
-        
-        # Write files_per_partition number of Parquet files
-        for file_index in range(files_per_partition):
-            # Generate file name
-            file_name = f'part{file_index+1}.parquet'
-            
-            # Write data to the Parquet file
-            partition_writer.write_table(table)
-        
-        # Close the Parquet writer for this partition
-        partition_writer.close()
+        with s3.open(file_path, 'wb') as f:
+            pq.write_table(table, f, compression='snappy')
