@@ -1,21 +1,25 @@
-for partition_index in range(num_partitions):
-    # Generate partition_dt (random date in YYYYMMDD format)
-    partition_dt = fake.date_between(start_date='-30d', end_date='today').strftime('%Y%m%d')
-    print("Partition Date:", partition_dt)
-    
-    # Iterate over contxt_id within each partition
     for _ in range(8):
         # Generate random contxt_id (10 digits)
         contxt_id = str(random.randint(1000000000, 9999999999))
-        print("Contxt ID:", contxt_id)
         
         # Define the file path for this partition
         file_path = f's3://your-bucket-name/output/partition_dt={partition_dt}/contxt_id={contxt_id}/part.parquet'
         
-        # Write the Parquet file to S3
-        try:
-            with s3.open(file_path, 'wb') as f:
-                pq.write_table(table, f, compression='snappy')
-            print("File written successfully:", file_path)
-        except Exception as e:
-            print("Error writing file:", e)
+        # Filter the table for the current partition_dt and contxt_id
+        filtered_table = table.filter((table['partition_dt'] == partition_dt) & (table['contxt_id'] == contxt_id))
+        
+        # Get the number of rows in the filtered table
+        num_rows = filtered_table.num_rows
+        
+        # Calculate the number of rows per file
+        rows_per_file = num_rows // files_per_partition
+        
+        # Split the filtered table into smaller chunks
+        chunks = [filtered_table[i:i+rows_per_file] for i in range(0, num_rows, rows_per_file)]
+        
+        # Write each chunk as a separate Parquet file
+        for i, chunk in enumerate(chunks):
+            file_name = f'part{i+1}.parquet'
+            file_path_with_name = f'{file_path}/{file_name}'
+            with s3.open(file_path_with_name, 'wb') as f:
+                pq.write_table(chunk, f, compression='snappy')
