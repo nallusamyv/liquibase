@@ -1,8 +1,21 @@
-import pyarrow.parquet as pq
+from pyspark.sql import SparkSession
 
-# Load Parquet file
-table = pq.read_table('path_to_parquet_file')
+# Initialize Spark session
+spark = SparkSession.builder \
+    .appName("Parquet Compression") \
+    .getOrCreate()
 
-# Check compression codec
-compression_codec = table.schema.metadata.get('ARROW:compression')
-print(compression_codec)
+# Source S3 location of the Parquet files
+source_path = "s3://your-source-bucket/path/to/parquet/"
+
+# Target S3 location to store compressed Parquet files
+target_path = "s3://your-target-bucket/path/to/compressed_parquet/"
+
+# Read Parquet files with partitioned structure
+df = spark.read.parquet(source_path)
+
+# Write Parquet files back to S3 with Snappy compression
+df.write.mode("overwrite").parquet(target_path, compression="snappy")
+
+# Stop Spark session
+spark.stop()
