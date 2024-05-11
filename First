@@ -4,5 +4,5 @@ import pyarrow.parquet as pq
 table = pq.read_table('path_to_parquet_file')
 
 # Check compression codec
-compression_codec = table.schema.metadata[b'org.apache.parquet.compress']
+compression_codec = table.schema.metadata.get('ARROW:compression')
 print(compression_codec)
