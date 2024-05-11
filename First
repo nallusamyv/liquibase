@@ -1,2 +1,8 @@
-User
-I joined ABC about 8 months back and my son is studying 9th grade. I would like to know any studcent program or internship program available in our organization to get enrolled. He is interested in both IT and Finance area.  So i would like to check.  Please rewrod
+import pyarrow.parquet as pq
+
+# Load Parquet file
+table = pq.read_table('path_to_parquet_file')
+
+# Check compression codec
+compression_codec = table.schema.metadata[b'org.apache.parquet.compress']
+print(compression_codec)
