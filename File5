@@ -1,33 +1,39 @@
-from pyspark.context import SparkContext
 from awsglue.context import GlueContext
-from awsglue.dynamicframe import DynamicFrame
+from pyspark.context import SparkContext
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import rand, lit, sha1
 
 # Create a Spark session
 spark = SparkSession.builder \
-    .appName("InsertDataIntoIcebergTable") \
+    .appName("ModifyAndWritePartitionedData") \
     .getOrCreate()
 
 # Create GlueContext
 glueContext = GlueContext(SparkContext.getOrCreate())
 
-# Define your source data
-source_data = glueContext.create_dynamic_frame.from_catalog(database="your_database", table_name="your_source_table")
+# Read data into a DataFrame
+dataframe = spark.read \
+    .format("parquet") \
+    .option("basePath", "s3://your-bucket/path/to/incomefile") \
+    .load("s3://your-bucket/path/to/incomefile")
 
-# Convert DynamicFrame to DataFrame
-dataframe = source_data.toDF()
+# Generate random values for string fields
+dataframe = dataframe.withColumn("string_field", sha1(rand()).cast("string"))
 
-# Register DataFrame as a temporary table
-dataframe.createOrReplaceTempView("temp_source_table")
+# Generate random values for decimal and numeric fields
+dataframe = dataframe.withColumn("decimal_field", rand()) \
+                     .withColumn("numeric_field", rand() * 100)
 
-# Write Spark SQL for insertion
-insert_sql = """
-INSERT INTO TABLE your_iceberg_table
-SELECT *
-FROM temp_source_table
-"""
+# Update partition columns
+dataframe = dataframe.withColumn("partition_dt", lit("new_partition_value")) \
+                     .withColumn("contxt_key_id", lit("new_contxt_key_value"))
 
-# Execute the insert SQL statement
-spark.sql(insert_sql)
+# Write data to different partition folders based on partition_dt and contxt_key_id
+dataframe.write \
+    .partitionBy("partition_dt", "contxt_key_id") \
+    .format("parquet") \
+    .mode("overwrite") \
+    .save("s3://your-bucket/output-path")
 
 # Stop Spark session
 spark.stop()
