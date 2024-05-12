@@ -1,18 +1,33 @@
-import pyarrow.parquet as pq
-import s3fs
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.dynamicframe import DynamicFrame
 
-# Define the S3 filesystem and root directory
-s3 = s3fs.S3FileSystem()
-root_dir = 's3://your-bucket-name/path/to/your/parquet/'
+# Create a Spark session
+spark = SparkSession.builder \
+    .appName("InsertDataIntoIcebergTable") \
+    .getOrCreate()
 
-# Define the partition keys
-partition_keys = ['partition_dt', 'contxt_id']
+# Create GlueContext
+glueContext = GlueContext(SparkContext.getOrCreate())
 
-# Create ParquetDataset
-dataset = pq.ParquetDataset(root_dir, filesystem=s3, partitioning=partition_keys)
+# Define your source data
+source_data = glueContext.create_dynamic_frame.from_catalog(database="your_database", table_name="your_source_table")
 
-# Get the schema of the dataset
-schema = dataset.schema
+# Convert DynamicFrame to DataFrame
+dataframe = source_data.toDF()
 
-# Now you can work with the schema
-print(schema)
+# Register DataFrame as a temporary table
+dataframe.createOrReplaceTempView("temp_source_table")
+
+# Write Spark SQL for insertion
+insert_sql = """
+INSERT INTO TABLE your_iceberg_table
+SELECT *
+FROM temp_source_table
+"""
+
+# Execute the insert SQL statement
+spark.sql(insert_sql)
+
+# Stop Spark session
+spark.stop()
