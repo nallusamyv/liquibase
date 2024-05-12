@@ -1,21 +1,27 @@
+from pyspark.context import SparkContext
 from pyspark.sql import SparkSession
+from pyspark.sql.types import StructType, StructField, StringType, LongType
 
-# Initialize Spark session
+# Initialize SparkSession
 spark = SparkSession.builder \
-    .appName("Parquet Compression") \
+    .appName("Create Iceberg Table") \
+    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+    .config("spark.hadoop.fs.s3a.access.key", "YOUR_ACCESS_KEY") \
+    .config("spark.hadoop.fs.s3a.secret.key", "YOUR_SECRET_KEY") \
     .getOrCreate()
 
-# Source S3 location of the Parquet files
-source_path = "s3://your-source-bucket/path/to/parquet/"
+# Initialize SparkContext
+sc = spark.sparkContext
 
-# Target S3 location to store compressed Parquet files
-target_path = "s3://your-target-bucket/path/to/compressed_parquet/"
+# Configure Hadoop Catalog with S3
+sc._jsc.hadoopConfiguration().set("spark.hadoop.iceberg.catalog", "hadoop.catalog.s3")
+sc._jsc.hadoopConfiguration().set("spark.hadoop.iceberg.catalog.s3.warehouse", "s3://your-bucket-name/catalog/warehouse")
 
-# Read Parquet files with partitioned structure
-df = spark.read.parquet(source_path)
+# Define schema
+schema = StructType([
+    StructField("id", LongType(), True),
+    StructField("name", StringType(), True)
+])
 
-# Write Parquet files back to S3 with Snappy compression
-df.write.mode("overwrite").parquet(target_path, compression="snappy")
-
-# Stop Spark session
-spark.stop()
+# Create Iceberg table
+spark.sql("CREATE TABLE IF NOT EXISTS your_database.your_table_name USING iceberg OPTIONS ('catalog'='hadoop.catalog.s3', 'warehouse'='s3://your-bucket-name/catalog/warehouse') AS SELECT * FROM VALUES (1, 'John'), (2, 'Jane') AS t(id, name)")
