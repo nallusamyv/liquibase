@@ -1,7 +1,7 @@
 from awsglue.context import GlueContext
 from pyspark.context import SparkContext
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import rand, lit, sha1
+from pyspark.sql.functions import rand, lit, round, date_format
 
 # Create a Spark session
 spark = SparkSession.builder \
@@ -18,15 +18,15 @@ dataframe = spark.read \
     .load("s3://your-bucket/path/to/incomefile")
 
 # Generate random values for string fields
-dataframe = dataframe.withColumn("string_field", sha1(rand()).cast("string"))
+dataframe = dataframe.withColumn("string_field", rand().cast("string"))
 
 # Generate random values for decimal and numeric fields
-dataframe = dataframe.withColumn("decimal_field", rand()) \
+dataframe = dataframe.withColumn("decimal_field", round(rand() * 100, 2)) \
                      .withColumn("numeric_field", rand() * 100)
 
-# Update partition columns
-dataframe = dataframe.withColumn("partition_dt", lit("new_partition_value")) \
-                     .withColumn("contxt_key_id", lit("new_contxt_key_value"))
+# Generate random values for partition_dt and contxt_key_id
+dataframe = dataframe.withColumn("partition_dt", date_format(rand() * 10000000000, "yyyyMMdd")) \
+                     .withColumn("contxt_key_id", date_format(rand() * 10000000000, "yyMMdd") + rand().cast("int").cast("string"))
 
 # Write data to different partition folders based on partition_dt and contxt_key_id
 dataframe.write \
