@@ -1,27 +1,46 @@
-from pyspark.context import SparkContext
-from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, LongType
+Use Case: Customized Credit Analysis Comparison between GEN AI and ThoughtSpot
 
-# Initialize SparkSession
-spark = SparkSession.builder \
-    .appName("Create Iceberg Table") \
-    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-    .config("spark.hadoop.fs.s3a.access.key", "YOUR_ACCESS_KEY") \
-    .config("spark.hadoop.fs.s3a.secret.key", "YOUR_SECRET_KEY") \
-    .getOrCreate()
+Background:
+A financial institution seeks to enhance its credit analysis process using advanced analytics and visualization tools. Data from various tables, including deposit, organization, and trade, are available for analysis. To facilitate analysis, the institution will load the tables with synthetic or "mock" data.
 
-# Initialize SparkContext
-sc = spark.sparkContext
+Objectives:
 
-# Configure Hadoop Catalog with S3
-sc._jsc.hadoopConfiguration().set("spark.hadoop.iceberg.catalog", "hadoop.catalog.s3")
-sc._jsc.hadoopConfiguration().set("spark.hadoop.iceberg.catalog.s3.warehouse", "s3://your-bucket-name/catalog/warehouse")
+Develop a customized credit analysis model using GEN AI.
+Compare the model's performance with ThoughtSpot, a leading analytics platform.
+Steps:
 
-# Define schema
-schema = StructType([
-    StructField("id", LongType(), True),
-    StructField("name", StringType(), True)
-])
+Data Preparation:
 
-# Create Iceberg table
-spark.sql("CREATE TABLE IF NOT EXISTS your_database.your_table_name USING iceberg OPTIONS ('catalog'='hadoop.catalog.s3', 'warehouse'='s3://your-bucket-name/catalog/warehouse') AS SELECT * FROM VALUES (1, 'John'), (2, 'Jane') AS t(id, name)")
+Load synthetic data into the following tables:
+Deposit: Contains information about customer deposits, such as account balances and transaction history.
+Organization: Stores details about customer organizations, including size, industry, and revenue.
+Trade: Records trade transactions, including trade volumes, values, and counterparties.
+Preprocess data by handling missing values and encoding categorical variables.
+Split data into training and testing sets.
+Model Development with GEN AI:
+
+Utilize GEN AI to build a customized Linear Learner Model (LLM).
+Train the LLM on the prepared data, incorporating relevant features.
+Model Evaluation:
+
+Assess LLM performance using metrics like accuracy and F1-score.
+Validate model accuracy with cross-validation techniques.
+Integration with ThoughtSpot:
+
+Deploy the trained LLM to ThoughtSpot for predictive analysis.
+Configure ThoughtSpot to visualize credit analysis metrics from LLM predictions.
+Comparison Analysis:
+
+Compare LLM performance with ThoughtSpot's native analytics capabilities.
+Evaluate factors such as prediction accuracy and usability.
+Feedback and Iteration:
+
+Gather user feedback on both approaches.
+Iterate on model development and integration based on feedback.
+Expected Outcomes:
+
+A customized credit analysis model from GEN AI providing accurate predictions.
+A comparative analysis highlighting strengths and weaknesses of GEN AI vs. ThoughtSpot.
+Insights into the optimal approach for credit analysis.
+Conclusion:
+By comparing a customized credit analysis model from GEN AI with ThoughtSpot, the financial institution aims to improve decision-making and risk management in lending operations, leveraging advanced analytics and visualization tools.
