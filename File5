@@ -20,6 +20,24 @@ dataframe = spark.read \
 # Generate random values for string fields
 dataframe = dataframe.withColumn("string_field", rand().cast("string"))
 
+random_date_expr = from_unixtime(rand() * 10000000000)
+dataframe = dataframe.withColumn("exp_dt", date_format(random_date_expr, "yyyy-MM-dd"))
+
+from pyspark.sql.functions import lit, rand, date_format, from_unixtime
+
+# Generate random dates in the format 'YYYY-MM-DD'
+random_date_expr = from_unixtime(rand() * 10000000000)
+
+# Add the generated random date column to the DataFrame
+dataframe = dataframe.withColumn("exp_dt", date_format(random_date_expr, "yyyy-MM-dd"))
+
+# Generate random values for partition_dt and contxt_key_id
+# Convert random double to timestamp using from_unixtime()
+timestamp_expr = from_unixtime(rand() * 10000000000)
+
+dataframe = dataframe.withColumn("partition_dt", date_format(timestamp_expr, "yyyyMMdd")) \
+                     .withColumn("contxt_key_id", date_format(timestamp_expr, "yyMMdd") + lit(rand() * 100000).cast("int").cast("string"))
+
 dataframe = dataframe.withColumn("exp_dt", date_format(random_date_expr, "yyyy-MM-dd"))
 
 # Generate random values for decimal and numeric fields
