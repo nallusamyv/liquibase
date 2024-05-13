@@ -25,8 +25,13 @@ dataframe = dataframe.withColumn("decimal_field", round(rand() * 100, 2)) \
                      .withColumn("numeric_field", rand() * 100)
 
 # Generate random values for partition_dt and contxt_key_id
-dataframe = dataframe.withColumn("partition_dt", date_format(rand() * 10000000000, "yyyyMMdd")) \
-                     .withColumn("contxt_key_id", date_format(rand() * 10000000000, "yyMMdd") + rand().cast("int").cast("string"))
+from pyspark.sql.functions import lit, rand, date_format, from_unixtime
+
+# Convert random double to timestamp using from_unixtime()
+timestamp_expr = from_unixtime(rand() * 10000000000)
+
+dataframe = dataframe.withColumn("partition_dt", date_format(timestamp_expr, "yyyyMMdd")) \
+                     .withColumn("contxt_key_id", date_format(timestamp_expr, "yyMMdd") + lit(rand() * 100000).cast("int").cast("string"))
 
 # Write data to different partition folders based on partition_dt and contxt_key_id
 dataframe.write \
