@@ -17,6 +17,21 @@ dataframe = spark.read \
     .option("basePath", "s3://your-bucket/path/to/incomefile") \
     .load("s3://your-bucket/path/to/incomefile")
 
+from pyspark.sql.functions import lit, rand, date_format, from_unixtime
+
+# Generate a random integer value
+random_integer = lit(int(rand() * 100000))
+
+# Add the generated random integer to the DataFrame as a string
+dataframe = dataframe.withColumn("exp_dt", lit("string_value_") + random_integer.cast("string"))
+
+# Generate random values for partition_dt and contxt_key_id
+# Convert random double to timestamp using from_unixtime()
+timestamp_expr = from_unixtime(rand() * 10000000000)
+
+dataframe = dataframe.withColumn("partition_dt", date_format(timestamp_expr, "yyyyMMdd")) \
+                     .withColumn("contxt_key_id", date_format(timestamp_expr, "yyMMdd") + lit(rand() * 100000).cast("int").cast("string"))
+
 # Generate random values for string fields
 dataframe = dataframe.withColumn("string_field", rand().cast("string"))
 
