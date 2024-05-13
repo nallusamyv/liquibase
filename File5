@@ -1,15 +1,11 @@
-from awsglue.context import GlueContext
-from pyspark.context import SparkContext
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import rand, lit, round, date_format
+from pyspark.sql.functions import col, lit, rand, round, date_format, from_unixtime
+from datetime import datetime, timedelta
 
 # Create a Spark session
 spark = SparkSession.builder \
-    .appName("ModifyAndWritePartitionedData") \
+    .appName("RepartitionAndRewriteData") \
     .getOrCreate()
-
-# Create GlueContext
-glueContext = GlueContext(SparkContext.getOrCreate())
 
 # Read data into a DataFrame
 dataframe = spark.read \
@@ -17,66 +13,32 @@ dataframe = spark.read \
     .option("basePath", "s3://your-bucket/path/to/incomefile") \
     .load("s3://your-bucket/path/to/incomefile")
 
-from pyspark.sql.functions import lit, rand, date_format, from_unixtime
+# Define the range for partition_dt
+start_date = datetime(2020, 2, 2)
+end_date = datetime.now()
 
-# Generate a random integer value
-random_integer = lit(int(rand() * 100000))
+# Generate random dates within the specified range
+delta = end_date - start_date
+random_date = start_date + timedelta(days=rand() * delta.days)
 
-# Add the generated random integer to the DataFrame as a string
-dataframe = dataframe.withColumn("exp_dt", lit("string_value_") + random_integer.cast("string"))
+# Convert the random date to the desired format (yyyyMMdd)
+new_partition_dt = random_date.strftime("%Y%m%d")
 
-# Generate random values for partition_dt and contxt_key_id
-# Convert random double to timestamp using from_unixtime()
-timestamp_expr = from_unixtime(rand() * 10000000000)
+# Repartition the DataFrame based on the contxt_id. This ensures that all records with the same contxt_id will be processed together.
+dataframe = dataframe.repartition("contxt_id")
 
-dataframe = dataframe.withColumn("partition_dt", date_format(timestamp_expr, "yyyyMMdd")) \
-                     .withColumn("contxt_key_id", date_format(timestamp_expr, "yyMMdd") + lit(rand() * 100000).cast("int").cast("string"))
+# Update the necessary fields with new values
+# For example, change values in "some_field1", "some_field2", "some_field3", "some_field4", and "some_field5" columns
+dataframe = dataframe.withColumn("some_field1", lit("new_value1")) \
+                     .withColumn("some_field2", lit("new_value2")) \
+                     .withColumn("some_field3", lit("new_value3")) \
+                     .withColumn("some_field4", lit("new_value4")) \
+                     .withColumn("some_field5", lit("new_value5")) \
+                     .withColumn("partition_dt", lit(new_partition_dt))
 
-# Generate random values for string fields
-dataframe = dataframe.withColumn("string_field", rand().cast("string"))
-
-random_date_expr = from_unixtime(rand() * 10000000000)
-dataframe = dataframe.withColumn("exp_dt", date_format(random_date_expr, "yyyy-MM-dd"))
-
-from pyspark.sql.functions import lit, rand, date_format, from_unixtime
-
-# Generate random dates in the format 'YYYY-MM-DD'
-random_date_expr = from_unixtime(rand() * 10000000000)
-
-# Add the generated random date column to the DataFrame
-dataframe = dataframe.withColumn("exp_dt", date_format(random_date_expr, "yyyy-MM-dd"))
-
-# Generate random values for partition_dt and contxt_key_id
-# Convert random double to timestamp using from_unixtime()
-timestamp_expr = from_unixtime(rand() * 10000000000)
-
-dataframe = dataframe.withColumn("partition_dt", date_format(timestamp_expr, "yyyyMMdd")) \
-                     .withColumn("contxt_key_id", date_format(timestamp_expr, "yyMMdd") + lit(rand() * 100000).cast("int").cast("string"))
-
-dataframe = dataframe.withColumn("exp_dt", date_format(random_date_expr, "yyyy-MM-dd"))
-
-# Generate random values for decimal and numeric fields
-from pyspark.sql.functions import rand, round, lit
-
-# Generate random integer values in the range from 1,000,000 to 9,999,999
-numeric_field = round(rand() * 8999999 + 1000000, 0).cast("int")
-
-# Add the generated numeric field to the DataFrame
-dataframe = dataframe.withColumn("numeric_field", numeric_field)
-
-
-# Generate random values for partition_dt and contxt_key_id
-from pyspark.sql.functions import lit, rand, date_format, from_unixtime
-
-# Convert random double to timestamp using from_unixtime()
-timestamp_expr = from_unixtime(rand() * 10000000000)
-
-dataframe = dataframe.withColumn("partition_dt", date_format(timestamp_expr, "yyyyMMdd")) \
-                     .withColumn("contxt_key_id", date_format(timestamp_expr, "yyMMdd") + lit(rand() * 100000).cast("int").cast("string"))
-
-# Write data to different partition folders based on partition_dt and contxt_key_id
+# Write data to new partition folders based on the updated partition_dt and contxt_id
 dataframe.write \
-    .partitionBy("partition_dt", "contxt_key_id") \
+    .partitionBy("partition_dt", "contxt_id") \
     .format("parquet") \
     .mode("overwrite") \
     .save("s3://your-bucket/output-path")
