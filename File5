@@ -20,6 +20,8 @@ dataframe = spark.read \
 # Generate random values for string fields
 dataframe = dataframe.withColumn("string_field", rand().cast("string"))
 
+dataframe = dataframe.withColumn("exp_dt", date_format(random_date_expr, "yyyy-MM-dd"))
+
 # Generate random values for decimal and numeric fields
 from pyspark.sql.functions import rand, round, lit
 
