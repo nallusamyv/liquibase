@@ -21,8 +21,14 @@ dataframe = spark.read \
 dataframe = dataframe.withColumn("string_field", rand().cast("string"))
 
 # Generate random values for decimal and numeric fields
-dataframe = dataframe.withColumn("decimal_field", round(rand() * 100, 2)) \
-                     .withColumn("numeric_field", rand() * 100)
+from pyspark.sql.functions import rand, round, lit
+
+# Generate random integer values in the range from 1,000,000 to 9,999,999
+numeric_field = round(rand() * 8999999 + 1000000, 0).cast("int")
+
+# Add the generated numeric field to the DataFrame
+dataframe = dataframe.withColumn("numeric_field", numeric_field)
+
 
 # Generate random values for partition_dt and contxt_key_id
 from pyspark.sql.functions import lit, rand, date_format, from_unixtime
