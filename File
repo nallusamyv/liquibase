@@ -1,58 +1,45 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType
+CREATE OR REPLACE PROCEDURE CREATE_EXTERNAL_TABLE(TABLE_NAME VARCHAR, DIRECTORY_PATH VARCHAR, FILE_NAME VARCHAR)
+  RETURNS STRING
+  LANGUAGE JAVASCRIPT
+  EXECUTE AS CALLER
+AS
+$$
+var location = '@mystage/' + DIRECTORY_PATH + '/' + FILE_NAME; // Constructing the full location path including filename
 
-# Initialize SparkSession
-spark = SparkSession.builder \
-    .appName("Read Parquet, Extract Schema, Write to Iceberg") \
-    .config("spark.jars", "org.apache.iceberg:iceberg-core:0.12.0,org.apache.iceberg:iceberg-spark3:0.12.0") \
-    .config("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkCatalog") \
-    .getOrCreate()
+var sql_statement = `
+CREATE EXTERNAL TABLE ${TABLE_NAME}
+  USING TEMPLATE (
+    SELECT ARRAY_AGG(OBJECT_CONSTRUCT('COLUMN_NAME',COLUMN_NAME, 'TYPE',TYPE, 'NULLABLE', NULLABLE, 'EXPRESSION',EXPRESSION))
+    FROM TABLE(
+      INFER_SCHEMA(
+        LOCATION=>'${location}',
+        FILE_FORMAT=>'my_parquet_format'
+      )
+    )
+  )
+  LOCATION='${location}'
+  FILE_FORMAT=my_parquet_format
+  AUTO_REFRESH=false;
+`;
 
+// Execute the SQL statement
+var stmt = snowflake.createStatement({sqlText: sql_statement});
+stmt.execute();
 
-# Required libraries for Iceberg
-spark._jvm.org.apache.hadoop.hive.conf.HiveConf()
-spark._jvm.org.apache.hadoop.hive.ql.metadata.Hive.registerAllFunctions()
+// Alter table to add partition by partition_dt extracted from metadata$filename
+var alter_sql_statement = `
+ALTER TABLE ${TABLE_NAME} ADD COLUMN partition_dt STRING AS split(split(split(metadata$filename, '/')[6], '_')[5], '=')[1];
+ALTER TABLE ${TABLE_NAME} SET PARTITION = (partition_dt);
+`;
 
-# Read data from S3 Parquet files with partition columns
-s3_bucket = "s3://bucket_name/"
-parquet_file_path = "abc/bcd/elig_file"
-df = spark.read.parquet(s3_bucket + parquet_file_path)
+var alter_stmt = snowflake.createStatement({sqlText: alter_sql_statement});
+alter_stmt.execute();
 
-# Extract schema
-schema = df.schema
+// Get the DDL of the table
+var ddl_stmt = snowflake.createStatement({sqlText: "SELECT GET_DDL('TABLE', '" + TABLE_NAME + "')"});
+var ddl_result = ddl_stmt.execute();
+ddl_result.next();
+var ddl = ddl_result.getColumnValue(1);
 
-# Iceberg specific imports
-from org.apache.iceberg.catalog import Catalog
-from org.apache.iceberg.spark.SparkCatalog import SparkCatalog
-from org.apache.iceberg.PartitionSpec import builder
-
-# Iceberg catalog configuration
-iceberg_catalog_name = "my_iceberg_catalog"
-iceberg_table_name = "my_iceberg_table"
-
-# Create Iceberg catalog
-iceberg_catalog = SparkCatalog(spark.sparkContext().getConf())
-
-# Define Iceberg table schema
-iceberg_schema = StructType.fromJson(schema.json())
-
-# Define partitioning scheme
-partition_spec = builder().identity("part_dt").identity("con_id").build()
-
-# Create Iceberg table if not exists
-if not iceberg_catalog.tableExists(iceberg_catalog_name, iceberg_table_name):
-    iceberg_catalog.createTable(iceberg_catalog_name, iceberg_table_name, iceberg_schema, partition_spec)
-    print("Iceberg table created successfully.")
-else:
-    print("Iceberg table already exists. Skipping table creation.")
-
-# Load data into Iceberg table
-iceberg_table = iceberg_catalog.loadTable(iceberg_catalog_name, iceberg_table_name)
-df.writeTo(iceberg_table).append()
-
-# Write Iceberg table to S3
-iceberg_table_location = "s3://bucket_name/path/to/store/table"
-iceberg_table.updateProperties({"write.location": iceberg_table_location})
-
-# Stop SparkSession
-spark.stop()
+return ddl;
+$$;
