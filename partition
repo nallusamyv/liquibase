@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE create_partitioned_external_table(
+CREATE OR REPLACE PROCEDURE create_partitioned_external_test(
     inputname STRING,
     filelocation STRING
 )
@@ -7,6 +7,9 @@ LANGUAGE JAVASCRIPT
 EXECUTE AS CALLER
 AS
 $$
+var inputname = typeof inputname !== 'undefined' ? inputname : '';
+var filelocation = typeof filelocation !== 'undefined' ? filelocation : '';
+
 try {
     var stage = '@mystage/';
     var file_format = 'my_parquet_format';
