@@ -1,69 +1,84 @@
 CREATE OR REPLACE PROCEDURE create_partitioned_external_table(
-    inputname STRING,
-    filelocation STRING
+    inputname VARCHAR,
+    filelocation VARCHAR
 )
-RETURNS STRING
-LANGUAGE JAVASCRIPT
+RETURNS VARCHAR
+LANGUAGE SQL
 EXECUTE AS CALLER
 AS
 $$
-try {
-    var stage = '@mystage/';
-    var file_format = 'my_parquet_format';
-    var location = stage + filelocation + '/';
+DECLARE
+    stage VARCHAR(255);
+    file_format VARCHAR(255);
+    location VARCHAR(255);
+    createTableSQL VARCHAR(1000);
+    addFirstPartitionSQL VARCHAR(1000);
+    addSecondPartitionSQL VARCHAR(1000);
+    getDDLQuery VARCHAR(1000);
+    ddlResult VARCHAR(1000);
+    newDDL VARCHAR(1000);
+BEGIN
+    stage := '@mystage/';
+    file_format := 'my_parquet_format';
+    location := stage || filelocation || '/';
 
-    // Step 1: Create the external table using INFER_SCHEMA
-    var createTableSQL = `
-        CREATE EXTERNAL TABLE ${inputname}
+    -- Step 1: Create the external table using INFER_SCHEMA
+    createTableSQL := '
+        CREATE EXTERNAL TABLE ' || inputname || '
         USING TEMPLATE (
-            SELECT ARRAY_AGG(OBJECT_CONSTRUCT('COLUMN_NAME',COLUMN_NAME, 'TYPE',TYPE, 'NULLABLE', NULLABLE, 'EXPRESSION',EXPRESSION))
+            SELECT ARRAY_AGG(OBJECT_CONSTRUCT(''COLUMN_NAME'',COLUMN_NAME, ''TYPE'',TYPE, ''NULLABLE'', NULLABLE, ''EXPRESSION'',EXPRESSION))
             FROM TABLE(
                 INFER_SCHEMA(
-                    LOCATION=>'${location}',
-                    FILE_FORMAT=>'${file_format}'
+                    LOCATION=>''' || location || ''',
+                    FILE_FORMAT=>''' || file_format || '''
                 )
             )
         )
-        LOCATION='${location}'
-        FILE_FORMAT='${file_format}'
-        AUTO_REFRESH=false;
-    `;
-    snowflake.execute({ sqlText: createTableSQL });
+        LOCATION=''' || location || '''
+        FILE_FORMAT=''' || file_format || '''
+        AUTO_REFRESH=false
+    ';
 
-    // Step 2: Add the first partition column
-    var addFirstPartitionSQL = `
-        ALTER TABLE ${inputname} ADD COLUMN partition_date STRING AS 
-        SPLIT_PART(SPLIT_PART(metadata$filename, '/', 5), '=', 2);
-    `;
-    snowflake.execute({ sqlText: addFirstPartitionSQL });
+    EXECUTE IMMEDIATE createTableSQL;
 
-    // Step 3: Add the second partition column
-    var addSecondPartitionSQL = `
-        ALTER TABLE ${inputname} ADD COLUMN contxt_key_id STRING AS 
-        SPLIT_PART(SPLIT_PART(metadata$filename, '/', 6), '=', 2);
-    `;
-    snowflake.execute({ sqlText: addSecondPartitionSQL });
+    -- Step 2: Add the first partition column
+    addFirstPartitionSQL := '
+        ALTER TABLE ' || inputname || ' ADD COLUMN partition_date STRING AS 
+        SPLIT_PART(SPLIT_PART(metadata$filename, ''/'', 5), ''='', 2)
+    ';
 
-    // Step 4: Get the table DDL and modify it to include partitioning
-    var getDDLQuery = `
+    EXECUTE IMMEDIATE addFirstPartitionSQL;
+
+    -- Step 3: Add the second partition column
+    addSecondPartitionSQL := '
+        ALTER TABLE ' || inputname || ' ADD COLUMN contxt_key_id STRING AS 
+        SPLIT_PART(SPLIT_PART(metadata$filename, ''/'', 6), ''='', 2)
+    ';
+
+    EXECUTE IMMEDIATE addSecondPartitionSQL;
+
+    -- Step 4: Get the table DDL and modify it to include partitioning
+    getDDLQuery := '
         SELECT REPLACE(
             REPLACE(
-                GET_DDL('TABLE', '${inputname}'),
-                'LOCATION=', 
-                'PARTITION BY (partition_date, contxt_key_id)\nLOCATION='
+                GET_DDL(''TABLE'', ''' || inputname || '''),
+                ''LOCATION='', 
+                ''PARTITION BY (partition_date, contxt_key_id)\nLOCATION=''
             ), 
             '"', 
             ''
         ) AS ddl
-    `;
-    var ddlResult = snowflake.execute({ sqlText: getDDLQuery }).next();
+    ';
 
-    var newDDL = ddlResult.DDL;
-    snowflake.execute({ sqlText: `DROP TABLE ${inputname}` });
-    snowflake.execute({ sqlText: newDDL });
+    EXECUTE IMMEDIATE getDDLQuery INTO ddlResult;
 
-    return 'Table created and partitioned successfully.';
-} catch (err) {
-    return 'Error: ' + err.message;
-}
+    newDDL := ddlResult;
+    EXECUTE IMMEDIATE 'DROP TABLE ' || inputname;
+    EXECUTE IMMEDIATE newDDL;
+
+    RETURN 'Table created and partitioned successfully.';
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN 'Error: ' || SQLERRM;
+END;
 $$;
