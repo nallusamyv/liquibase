@@ -1,0 +1,77 @@
+CREATE OR REPLACE PROCEDURE create_partitioned_external_table(
+    inputname STRING,
+    filelocation STRING,
+    firstpartition STRING DEFAULT NULL,
+    firstpartitionpos INT DEFAULT NULL,
+    secondpartition STRING DEFAULT NULL,
+    secondpartitionpos INT DEFAULT NULL
+)
+RETURNS STRING
+LANGUAGE JAVASCRIPT
+EXECUTE AS CALLER
+AS
+$$
+try {
+    var stage = '@mystage/';
+    var file_format = 'my_parquet_format';
+    var location = stage + filelocation + '/';
+
+    // Step 1: Create the external table using INFER_SCHEMA
+    var createTableSQL = `
+        CREATE EXTERNAL TABLE ${inputname}
+        USING TEMPLATE (
+            SELECT ARRAY_AGG(OBJECT_CONSTRUCT('COLUMN_NAME',COLUMN_NAME, 'TYPE',TYPE, 'NULLABLE', NULLABLE, 'EXPRESSION',EXPRESSION))
+            FROM TABLE(
+                INFER_SCHEMA(
+                    LOCATION=>'${location}',
+                    FILE_FORMAT=>'${file_format}'
+                )
+            )
+        )
+        LOCATION='${location}'
+        FILE_FORMAT='${file_format}'
+        AUTO_REFRESH=false;
+    `;
+    snowflake.execute({ sqlText: createTableSQL });
+
+    var ddlChanges = false;
+    var partitionClauses = [];
+
+    // Step 2: Conditionally add the first partition column
+    if (firstpartition && firstpartitionpos) {
+        var addFirstPartitionSQL = `
+            ALTER TABLE ${inputname} ADD COLUMN ${firstpartition} STRING AS 
+            SPLIT_PART(SPLIT_PART(metadata$filename, '/', ${firstpartitionpos}), '=', 2);
+        `;
+        snowflake.execute({ sqlText: addFirstPartitionSQL });
+        ddlChanges = true;
+        partitionClauses.push(firstpartition);
+    }
+
+    // Step 3: Conditionally add the second partition column
+    if (secondpartition && secondpartitionpos) {
+        var addSecondPartitionSQL = `
+            ALTER TABLE ${inputname} ADD COLUMN ${secondpartition} STRING AS 
+            SPLIT_PART(SPLIT_PART(metadata$filename, '/', ${secondpartitionpos}), '=', 2);
+        `;
+        snowflake.execute({ sqlText: addSecondPartitionSQL });
+        ddlChanges = true;
+        partitionClauses.push(secondpartition);
+    }
+
+    // Step 4: Conditionally modify the DDL to include partitioning if any partition columns were added
+    if (ddlChanges) {
+        var partitionByClause = `PARTITION BY (${partitionClauses.join(', ')})`;
+        var getDDLQuery = `SELECT REPLACE(GET_DDL('TABLE', '${inputname}'), 'LOCATION=', '${partitionByClause}\nLOCATION=') AS ddl`;
+        var ddlResult = snowflake.execute({ sqlText: getDDLQuery }).next();
+        
+        var newDDL = ddlResult.DDL;
+        snowflake.execute({ sqlText: `DROP TABLE ${inputname}` });
+        snowflake.execute({ sqlText: newDDL });
+    }
+
+    return 'Table created successfully.';
+} catch (err) {
+    return 'Error: ' + err.message;
+}
+$$;
