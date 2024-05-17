@@ -1,3 +1,16 @@
+var getDDLQuery = `
+        SELECT GET_DDL('TABLE', '${inputName}') AS ddl
+    `;
+    var ddlResult = snowflake.execute({ sqlText: getDDLQuery }).next();
+
+    // Step 5: Modify the obtained DDL to include PARTITION BY clause
+    var ddl = ddlResult.DDL.replace('LOCATION=', 'PARTITION BY (partition_date, contxt_key_id)\nLOCATION=');
+    ddl = ddl.replace(/"/g, ''); // Remove double quotes
+
+    // Step 6: Drop the original table and recreate it with modified DDL
+    snowflake.execute({ sqlText: `DROP TABLE ${inputName}` });
+    snowflake.execute({ sqlText: ddl });
+
 CREATE OR REPLACE PROCEDURE create_partitioned_external_table(
     inputName STRING,
     fileLocation STRING
