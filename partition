@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE create_partitioned_external_test(
+CREATE OR REPLACE PROCEDURE create_partitioned_external_table(
     inputname STRING,
     filelocation STRING
 )
@@ -7,15 +7,62 @@ LANGUAGE JAVASCRIPT
 EXECUTE AS CALLER
 AS
 $$
-var inputname = typeof inputname !== 'undefined' ? inputname : '';
-var filelocation = typeof filelocation !== 'undefined' ? filelocation : '';
-
 try {
     var stage = '@mystage/';
     var file_format = 'my_parquet_format';
     var location = stage + filelocation + '/';
 
-    return inputname; // Return inputname here
+    // Step 1: Create the external table using INFER_SCHEMA
+    var createTableSQL = `
+        CREATE EXTERNAL TABLE ${inputname}
+        USING TEMPLATE (
+            SELECT ARRAY_AGG(OBJECT_CONSTRUCT('COLUMN_NAME',COLUMN_NAME, 'TYPE',TYPE, 'NULLABLE', NULLABLE, 'EXPRESSION',EXPRESSION))
+            FROM TABLE(
+                INFER_SCHEMA(
+                    LOCATION=>'${location}',
+                    FILE_FORMAT=>'${file_format}'
+                )
+            )
+        )
+        LOCATION='${location}'
+        FILE_FORMAT='${file_format}'
+        AUTO_REFRESH=false;
+    `;
+    snowflake.execute({ sqlText: createTableSQL });
+
+    // Step 2: Add the first partition column
+    var addFirstPartitionSQL = `
+        ALTER TABLE ${inputname} ADD COLUMN partition_date STRING AS 
+        SPLIT_PART(SPLIT_PART(metadata$filename, '/', 5), '=', 2);
+    `;
+    snowflake.execute({ sqlText: addFirstPartitionSQL });
+
+    // Step 3: Add the second partition column
+    var addSecondPartitionSQL = `
+        ALTER TABLE ${inputname} ADD COLUMN contxt_key_id STRING AS 
+        SPLIT_PART(SPLIT_PART(metadata$filename, '/', 6), '=', 2);
+    `;
+    snowflake.execute({ sqlText: addSecondPartitionSQL });
+
+    // Step 4: Get the table DDL and modify it to include partitioning
+    var getDDLQuery = `
+        SELECT REPLACE(
+            REPLACE(
+                GET_DDL('TABLE', '${inputname}'),
+                'LOCATION=', 
+                'PARTITION BY (partition_date, contxt_key_id)\nLOCATION='
+            ), 
+            '"', 
+            ''
+        ) AS ddl
+    `;
+    var ddlResult = snowflake.execute({ sqlText: getDDLQuery }).next();
+
+    var newDDL = ddlResult.DDL;
+    snowflake.execute({ sqlText: `DROP TABLE ${inputname}` });
+    snowflake.execute({ sqlText: newDDL });
+
+    return 'Table created and partitioned successfully.';
 } catch (err) {
     return 'Error: ' + err.message;
 }
