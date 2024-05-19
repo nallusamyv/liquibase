@@ -1,26 +1,44 @@
-import json
+from pyspark.sql import SparkSession
 
-def lambda_handler(event, context):
-    for record in event['Records']:
-        # Extract bucket name and object key from the event record
-        bucket_name = record['s3']['bucket']['name']
-        object_key = record['s3']['object']['key']
-        
-        # Extract subfolder from the object key
-        subfolder = object_key.split('/')[0]  # Assuming subfolder is the first part of the key
-        
-        # Determine the appropriate handling based on bucket name and subfolder
-        if subfolder == 'subfolder4':
-            handle_subfolder4_event(bucket_name, object_key)
-        elif subfolder == 'subfolder1':
-            handle_subfolder1_event(bucket_name, object_key)
-        else:
-            print("Unhandled event:", record)
+# Create a SparkSession and configure it for Iceberg and Hadoop catalog
+spark = SparkSession.builder \
+    .appName("IcebergExample") \
+    .config("spark.sql.catalog.hadoop_catalog", "org.apache.iceberg.spark.SparkCatalog") \
+    .config("spark.sql.catalog.hadoop_catalog.type", "hadoop") \
+    .config("spark.sql.catalog.hadoop_catalog.warehouse", "s3://your-bucket/warehouse") \
+    .config("spark.hadoop.fs.s3a.access.key", "your-access-key") \
+    .config("spark.hadoop.fs.s3a.secret.key", "your-secret-key") \
+    .config("spark.hadoop.fs.s3a.endpoint", "s3.amazonaws.com") \
+    .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
+    .getOrCreate()
 
-def handle_subfolder4_event(bucket_name, object_key):
-    # Handle events from subfolder4
-    print(f"Handling event from bucket '{bucket_name}' in subfolder4 for object '{object_key}'")
+# Define the path to the Parquet files
+parquet_path = "s3://your-bucket/path/to/parquet/files"
 
-def handle_subfolder1_event(bucket_name, object_key):
-    # Handle events from subfolder1
-    print(f"Handling event from bucket '{bucket_name}' in subfolder1 for object '{object_key}'")
+# Read the Parquet files into a DataFrame
+df = spark.read.parquet(parquet_path)
+
+# Define the Iceberg table name
+iceberg_table = "hadoop_catalog.your_database.your_table"
+
+# Create the table if it doesn't exist
+spark.sql(f"""
+CREATE TABLE IF NOT EXISTS {iceberg_table} (
+    col1 STRING,
+    col2 STRING,
+    partition_date STRING,
+    context_key_id STRING
+    -- Add other columns as per your schema
+)
+USING iceberg
+PARTITIONED BY (partition_date, context_key_id)
+""")
+
+# Write the DataFrame to the Iceberg table
+df.write \
+  .format("iceberg") \
+  .mode("append") \
+  .save(iceberg_table)
+
+# Stop the Spark session
+spark.stop()
