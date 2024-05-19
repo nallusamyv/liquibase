@@ -1,0 +1,24 @@
+from pyspark.sql import SparkSession
+
+# Initialize Spark Session
+spark = SparkSession.builder \
+    .appName("IcebergIngestion") \
+    .config("spark.sql.catalog.hadoop_catalog", "org.apache.iceberg.spark.SparkCatalog") \
+    .config("spark.sql.catalog.hadoop_catalog.type", "hadoop") \
+    .config("spark.sql.catalog.hadoop_catalog.warehouse", "hdfs://path/to/warehouse") \
+    .config("spark.sql.parquet.compression.codec", "snappy") \  # Use Snappy compression
+    .config("spark.sql.files.maxPartitionBytes", "128MB") \  # Optimize for file size
+    .config("spark.sql.files.openCostInBytes", "4MB") \
+    .getOrCreate()
+
+# Read the Parquet file
+df = spark.read.parquet("hdfs://path/to/parquet/files")
+
+# Repartition the data to ensure optimal file size
+df = df.repartition(8)  # Adjust the number of partitions based on the size of your dataset and cluster
+
+# Write to the Iceberg table in Hadoop catalog
+df.write \
+    .format("iceberg") \
+    .mode("overwrite") \
+    .save("hadoop_catalog.db.table_name")
