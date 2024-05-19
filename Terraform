@@ -1,44 +1,11 @@
-from pyspark.sql import SparkSession
+I conducted a performance comparison between ABDDW and Parquet files (read in Snowflake as external tables) for the 'day_review' table, which contains 600 fields. The current production file size is 2.7 TB, but I generated 650 GB of data, representing a quarter of the volume, in the lower region for Snowflake. I had discussions with Satyan about various scenarios, although I only tested a few due to some use cases involving tables from the ABC system.
+ADW vs Parquet (Queries performed on 2.7 TB of Terradata vs 650 GB of S3 data):
+1.	The ABDDW application performs better compared to accessing it as an external table in Snowflake.
+2.	For querying a particular effective date (partition date), both platforms yield the same query results. However, Snowflake performs better when querying using the partition date format present in the partition field, utilizing partition pruning for improved performance.
+3.	When querying across multiple partitions, Snowflake exhibits slightly lower performance compared to Terradata.
+4.	Performance testing was conducted with and without fine-grained access control, with both scenarios yielding similar results.
+5.	Business users should be educated to use the 'partitiondate' format (yyyymmdd) rather than 'eff_dt' (yyyy-mm-dd).
+6.	With respect to warehouse size (small, medium, large), all provide similar performance when accessing data from S3.
+Please advise if we should generate a similar volume and perform the comparison.
 
-# Create a SparkSession and configure it for Iceberg and Hadoop catalog
-spark = SparkSession.builder \
-    .appName("IcebergExample") \
-    .config("spark.sql.catalog.hadoop_catalog", "org.apache.iceberg.spark.SparkCatalog") \
-    .config("spark.sql.catalog.hadoop_catalog.type", "hadoop") \
-    .config("spark.sql.catalog.hadoop_catalog.warehouse", "s3://your-bucket/warehouse") \
-    .config("spark.hadoop.fs.s3a.access.key", "your-access-key") \
-    .config("spark.hadoop.fs.s3a.secret.key", "your-secret-key") \
-    .config("spark.hadoop.fs.s3a.endpoint", "s3.amazonaws.com") \
-    .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
-    .getOrCreate()
-
-# Define the path to the Parquet files
-parquet_path = "s3://your-bucket/path/to/parquet/files"
-
-# Read the Parquet files into a DataFrame
-df = spark.read.parquet(parquet_path)
-
-# Define the Iceberg table name
-iceberg_table = "hadoop_catalog.your_database.your_table"
-
-# Create the table if it doesn't exist
-spark.sql(f"""
-CREATE TABLE IF NOT EXISTS {iceberg_table} (
-    col1 STRING,
-    col2 STRING,
-    partition_date STRING,
-    context_key_id STRING
-    -- Add other columns as per your schema
-)
-USING iceberg
-PARTITIONED BY (partition_date, context_key_id)
-""")
-
-# Write the DataFrame to the Iceberg table
-df.write \
-  .format("iceberg") \
-  .mode("append") \
-  .save(iceberg_table)
-
-# Stop the Spark session
-spark.stop()
+This project involved the conversion of Parquet data into Iceberg tables and a comprehensive comparison between accessing Parquet files and Iceberg tables in Snowflake. Below are the key activities conducted, the results obtained, and the advantages of Iceberg tables:Activities:Conversion to Iceberg Tables:Transformed 650 GB of Parquet data into Iceberg tables stored within both the Hadoop and Glue catalogs.Comparison Analysis:Conducted a detailed comparison between accessing Parquet files in Snowflake as external tables and accessing Iceberg tables as object integration (unmanaged Iceberg tables).Key Results:Storage Efficiency:Upon conversion to Iceberg format, a significant reduction in storage size on S3 was achieved, with a 30% decrease observed. Iceberg's advanced compression techniques contributed to this storage efficiency gain.Format Flexibility:Post-conversion to Iceberg tables, the data remained accessible as Parquet files. This dual accessibility allows for seamless integration with existing workflows, with metadata access available through Iceberg tables and direct data access through Parquet files.Performance Comparison:The comparison revealed that unmanaged Iceberg tables consistently outperformed S3 Parquet files across various performance metrics. This included faster query execution, enhanced data retrieval efficiency, and overall superior query performance.Advantages of Iceberg:Enhanced Storage Efficiency: Iceberg's advanced compression algorithms lead to reduced storage costs and optimized data storage on S3.Flexible Data Access: Iceberg tables offer flexible data access options, allowing for seamless integration with existing Parquet-based workflows while providing enhanced metadata management capabilities.Superior Performance: Iceberg's design facilitates efficient query execution and improved data retrieval efficiency, resulting in superior query performance compared to traditional Parquet files.Conclusion:The adoption of Iceberg tables in Snowflake offers significant advantages over traditional Parquet files, including enhanced storage efficiency, flexible data access, and superior query performance. The comparison analysis highlights the benefits of leveraging Iceberg tables for modern data analytics workloads.For a more detailed analysis, please refer to the attached deck.
