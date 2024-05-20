@@ -1,3 +1,11 @@
+    if (ddlResult.next()) {
+        var newDDL = ddlResult.getColumnValue('DDL');
+        snowflake.execute({ sqlText: `DROP TABLE ${inputName}` });
+        snowflake.execute({ sqlText: newDDL });
+    } else {
+        throw new Error('Failed to retrieve the DDL.');
+    }
+
 var getDDLQuery = `
         SELECT GET_DDL('TABLE', '${inputName}') AS ddl
     `;
