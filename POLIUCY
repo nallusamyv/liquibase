@@ -1,1 +1,2 @@
 df = df.withColumn("salary", df["salary"].cast(DecimalType(10, 2)))
+df = df.withColumn("new_date_field", concat_ws("", col("date_field").substr(1, 4), col("date_field").substr(6, 2), col("date_field").substr(9, 2)))
