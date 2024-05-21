@@ -1,4 +1,5 @@
-df_with_timestamp = df.withColumn("new_timestamp_column", current_timestamp())
-
-# Cast the timestamp column to TimestampType
-df_with_timestamp = df_with_timestamp.withColumn("new_timestamp_column", df_with_timestamp["new_timestamp_column"].cast(TimestampType()))
+spark.sql("""
+    UPDATE my_table
+    SET eff_dt = concat(substring(partition_dt, 1, 4), '-', substring(partition_dt, 5, 2), '-', substring(partition_dt, 7, 2))
+    WHERE metadata = 'your_condition'
+""")
