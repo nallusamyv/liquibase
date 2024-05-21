@@ -1,34 +1,30 @@
-from pyspark.context import SparkContext
-from awsglue.context import GlueContext
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import lit
-from datetime import datetime, timedelta
-import random
+Access the JOB API through Lambda to interact with Immuta to implement fine-grained access control.
 
-# Initialize Spark and Glue contexts
-sc = SparkContext()
-glueContext = GlueContext(sc)
-spark = glueContext.spark_session
+C2C FID should have access to the JOB entitlement, enabling the creation of datasources and the mapping of tags to datasources and columns.
 
-# Read original Parquet files
-original_df = spark.read.parquet("s3://bucket/subfolder1/filename/")
 
-# Define the range of dates
-start_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
-end_date = datetime.strptime("2022-12-31", "%Y-%m-%d")
-date_range = [start_date + timedelta(days=x) for x in range((end_date-start_date).days + 1)]
+Access the 5 batch account review tables in the JOB catalog and access datasource tags and column classifications present in the JOB catalog.
 
-# Define the number of random partition_dt values needed
-num_partitions = 10
+How to check the column classification.
+How to check the table tags.
+Register the data sources (external tables) in Immuta through the JOB API once the external table is created.
 
-# Generate random partition_dt values
-random_partition_dt_values = random.sample(date_range, num_partitions)
-random_partition_dt_values = [date.strftime("%Y%m%d") for date in random_partition_dt_values]
+This needs to be done through Lambda.
+This part should be done after creating the external table/view in Immuta.
+API information is as follows:
+Sample JSON to register.
 
-# Iterate through random partition_dt values
-for new_partition_dt in random_partition_dt_values:
-    # Create a new DataFrame with modified partition_dt
-    modified_df = original_df.withColumn("partition_dt", lit(new_partition_dt))
-    
-    # Write the modified DataFrame to new Parquet files
-    modified_df.write.mode("overwrite").partitionBy("partition_dt", "cont_id").parquet("s3://bucket/subfolder1/filename/")
+
+Map the tags to the data sources (external tables) and the columns (data dictionary - Immuta).
+
+This part should be done after creating the data sources in Immuta.
+API information is as follows:
+Sample JSON required.
+Perform analysis on creating policies through the JOB API.
+
+Verify the grant access through subscription policy in Immuta.
+
+It's a POC to validate the performance and understand the subscription policy implementation.
+
+
+As a user, I need to analyze how to create subscription and data policies in Immuta using the JOB API. This involves understanding policy requirements, designing policy structures, implementing policy creation through Lambda functions, and testing policy effectiveness. This analysis aims to streamline policy management within Immuta for improved data governance.
