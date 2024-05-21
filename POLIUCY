@@ -1,1 +1,1 @@
-df = df.withColumn("timestamp_column", lit(None).cast(TimestampType()))
+df = df.withColumn("salary", df["salary"].cast(DecimalType(10, 2)))
