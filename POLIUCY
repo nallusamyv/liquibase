@@ -1,5 +1,11 @@
-spark.sql("""
-    UPDATE my_table
-    SET eff_dt = concat(substring(partition_dt, 1, 4), '-', substring(partition_dt, 5, 2), '-', substring(partition_dt, 7, 2))
-    WHERE metadata = 'your_condition'
-""")
+# Read the Iceberg table
+df = spark.read.format("iceberg").load("my_catalog.db.my_table")
+
+# Update the eff_dt column based on the partition_dt column
+updated_df = df.withColumn("eff_dt", 
+                           concat(substring(col("partition_dt"), 1, 4), lit("-"), 
+                                  substring(col("partition_dt"), 5, 2), lit("-"), 
+                                  substring(col("partition_dt"), 7, 2)))
+
+# Write the updated DataFrame back to the Iceberg table
+updated_df.write.format("iceberg").mode("overwrite").save("my_catalog.db.my_table")
