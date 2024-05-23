@@ -1,14 +1,23 @@
-SELECT
-    query_id,
-    query_text,
-    start_time,
-    end_time,
-    total_elapsed_time,
-    is_result_cache_used
-FROM
-    table(information_schema.query_history())
-WHERE
-    query_text ILIKE '%SELECT * FROM my_external_table WHERE value > 100%'
-ORDER BY
-    start_time DESC
-LIMIT 1;
+I conducted a performance comparison between ABDDW and Parquet files (accessed in Snowflake as external tables) for the TAX and ABC_ACCT_REVIEW tables, each containing 600 fields.
+
+Our Setup:
+Data Storage: Files are stored in S3 in Parquet format with Snappy compression.
+External Table Access: These Parquet files are accessed as external tables in Snowflake.
+View Creation: A view is created on top of the external table to select the latest context ID.
+TAX Table: Compared ABDDW (production environment) vs. Snowflake (production environment) with 5 GB of data.
+ABC_ACCT_REVIEW Table: Compared ABDDW (production environment) vs. Snowflake (dev environment) with a simulated dataset in Snowflake (60% of production data, totaling 1.2 TB with 1000 partitions).
+Additional Table: Created the DWH.ACCT table for potential future sharing by ABC or linking by SAS with ABC Risk tables.
+
+Performance Comparison Findings:
+When using partitioned fields in filter conditions, Snowflake leverages partition pruning, resulting in query performance that matches or exceeds ABDDW (Teradata database).
+However, using non-partitioned fields in Snowflake does not perform as well as in ABDDW, as Snowflake needs to scan all partitions in the Parquet file. When i had interaction with TALX business user, mostly they use the eff_dt field (
+Query caching allows Snowflake to use its cache for re-run queries without modifications, leading to execution time faster
+Business users are advised to use the PARTITION_DATE format rather than EFF_DT to improve query performance.
+Warehouse sizing varies; a smaller warehouse size suffices for selecting records based on partition dates, while a medium warehouse size performs better for complex operations.
+Query planning insights reveal that most query execution time is spent scanning partitions, with fetching data from S3 taking 75% to 85% of the time.
+
+Please find the deck which shows each and every criteria of execution for both the TAX and ABC_ACCT_REVIEW details.
+
+In some cases, for larger files, business users might only use non-partitioned fields in the filter condition. When this happens, query performance can be suboptimal if the underlying file is in Parquet format.So i performed the POC on unmanaged Iceberg table in snowflake.  To perform the POC, 1.2 TB of ABC_ACCT_REVIEW Parquet file into Iceberg format and stored it in S3. I used the Hadoop catalog to maintain the table, as the Glue catalog was not included in the performance comparison due to the associated costs for CRUD operations. An unmanaged Iceberg table was created in Snowflake using the object integration method, pointing to the Iceberg table metadata managed by Hadoop.
+
+Initial performance comparisons indicate that Iceberg provides better performance for filtering based on both partitioned and non-partitioned fields compared to the Parquet format. I will provide more insights once the comparison is complete.
