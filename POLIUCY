@@ -1,11 +1,12 @@
-# Read the Iceberg table
-df = spark.read.format("iceberg").load("my_catalog.db.my_table")
-
-# Update the eff_dt column based on the partition_dt column
-updated_df = df.withColumn("eff_dt", 
-                           concat(substring(col("partition_dt"), 1, 4), lit("-"), 
-                                  substring(col("partition_dt"), 5, 2), lit("-"), 
-                                  substring(col("partition_dt"), 7, 2)))
-
-# Write the updated DataFrame back to the Iceberg table
-updated_df.write.format("iceberg").mode("overwrite").save("my_catalog.db.my_table")
+SELECT 
+    DatabaseName, 
+    TableName, 
+    IndexName, 
+    IndexNumber, 
+    ColumnName, 
+    UniqueFlag
+FROM 
+    DBC.Indices
+WHERE 
+    DatabaseName = 'your_database' 
+    AND TableName = 'your_table';
