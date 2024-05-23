@@ -21,3 +21,25 @@ Please find the deck which shows each and every criteria of execution for both t
 In some cases, for larger files, business users might only use non-partitioned fields in the filter condition. When this happens, query performance can be suboptimal if the underlying file is in Parquet format.So i performed the POC on unmanaged Iceberg table in snowflake.  To perform the POC, 1.2 TB of ABC_ACCT_REVIEW Parquet file into Iceberg format and stored it in S3. I used the Hadoop catalog to maintain the table, as the Glue catalog was not included in the performance comparison due to the associated costs for CRUD operations. An unmanaged Iceberg table was created in Snowflake using the object integration method, pointing to the Iceberg table metadata managed by Hadoop.
 
 Initial performance comparisons indicate that Iceberg provides better performance for filtering based on both partitioned and non-partitioned fields compared to the Parquet format. I will provide more insights once the comparison is complete.
+
+
+ICEBERG FORMAT
+
+
+Below is a detailed comparison between accessing Parquet files in Snowflake as external tables and accessing an Iceberg table via object integration (unmanaged Iceberg table):
+
+Storage Efficiency: Converting from Parquet to Iceberg format results in a noticeable reduction in stored size in S3, with a decrease of approximately 30%.
+
+Flexibility in Data Access: Even after conversion to Iceberg format, the data remains accessible as a Parquet file. This allows for both metadata access as an Iceberg table and direct data access as a Parquet file.
+
+Performance in Snowflake Environment:
+
+Partitioned Field Access: Both Parquet and Iceberg formats perform similarly when accessing partitioned fields for simple field selection.
+
+Aggregation Performance: Iceberg format demonstrates better performance compared to Parquet files when performing aggregation operations.
+
+Querying Non-Partitioned Fields: Iceberg format significantly outperforms Parquet files when querying non-partitioned fields.
+
+Overall Performance: In all aspects, the unmanaged Iceberg table provides superior performance compared to accessing S3 Parquet files.
+
+Additionally, while Iceberg provides features such as ACID (Atomicity, Consistency, Isolation, Durability) properties for ensuring data integrity and reliability, these capabilities were not tested as they are not relevant to our current use case. Similarly, version control, although available, was not tested as it does not apply to our scenario.
