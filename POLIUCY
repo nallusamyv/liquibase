@@ -1,12 +1,14 @@
-SELECT 
-    DatabaseName, 
-    TableName, 
-    IndexName, 
-    IndexNumber, 
-    ColumnName, 
-    UniqueFlag
-FROM 
-    DBC.Indices
-WHERE 
-    DatabaseName = 'your_database' 
-    AND TableName = 'your_table';
+SELECT
+    query_id,
+    query_text,
+    start_time,
+    end_time,
+    total_elapsed_time,
+    is_result_cache_used
+FROM
+    table(information_schema.query_history())
+WHERE
+    query_text ILIKE '%SELECT * FROM my_external_table WHERE value > 100%'
+ORDER BY
+    start_time DESC
+LIMIT 1;
