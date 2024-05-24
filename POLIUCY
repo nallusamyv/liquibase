@@ -16,6 +16,8 @@ Business users are advised to use the PARTITION_DATE format rather than EFF_DT t
 Warehouse sizing varies; a smaller warehouse size suffices for selecting records based on partition dates, while a medium warehouse size performs better for complex operations.
 Query planning insights reveal that most query execution time is spent scanning partitions, with fetching data from S3 taking 75% to 85% of the time.
 
+In the ABCDW application, index fields are established, typically based on frequently filtered fields as per conventional database practices. For instance, the "acct_ab" field is indexed in ICDW, but such indexing isn't present in ABCDW. Consequently, queries in ABCDW often exhibit superior performance.
+
 Please find the deck which shows each and every criteria of execution for both the TAX and ABC_ACCT_REVIEW details.
 
 In some cases, for larger files, business users might only use non-partitioned fields in the filter condition. When this happens, query performance can be suboptimal if the underlying file is in Parquet format.So i performed the POC on unmanaged Iceberg table in snowflake.  To perform the POC, 1.2 TB of ABC_ACCT_REVIEW Parquet file into Iceberg format and stored it in S3. I used the Hadoop catalog to maintain the table, as the Glue catalog was not included in the performance comparison due to the associated costs for CRUD operations. An unmanaged Iceberg table was created in Snowflake using the object integration method, pointing to the Iceberg table metadata managed by Hadoop.
