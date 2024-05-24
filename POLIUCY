@@ -1,5 +1,10 @@
 I conducted a performance comparison between ABDDW and Parquet files (accessed in Snowflake as external tables) for the TAX and ABC_ACCT_REVIEW tables, each containing 600 fields.
-
+Partitioned Fields: Using partitioned fields (e.g., PARTITION_DATE) in filter conditions allows Snowflake to utilize partition pruning, resulting in query performance that is better or equivalent to ABDDW (Teradata database).
+Non-Partitioned Fields: Using non-partitioned fields in Snowflake does not perform as well as in ABDDW because Snowflake needs to scan all partitions in the Parquet file. For example, using EFF_DT in Snowflake is slower as it requires scanning all partitions.
+Query Caching: Re-running the same queries without modifications enables Snowflake to use its cache (external or query cache), leading to execution times of just a few seconds.
+User Guidance: Business users should be educated to use the PARTITION_DATE format (yyyymmdd) rather than EFF_DT (yyyy-mm-dd) to improve query performance.
+Warehouse Sizing: A smaller warehouse size is sufficient for selecting records based on partition dates. For complex operations, a medium warehouse size performs better.
+Query Planning Insights: Most of the query execution time is spent scanning partitions (fetching data from S3 takes 75% to 85% of the time), with the remaining time used for actual SQL query processing.
 Our Setup:
 Data Storage: Files are stored in S3 in Parquet format with Snappy compression.
 External Table Access: These Parquet files are accessed as external tables in Snowflake.
