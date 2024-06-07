@@ -1,5 +1,5 @@
 url=jdbc:snowflake://<account>.snowflakecomputing.com
-username=${SNOWFLAKE_USER}
-password=${SNOWFLAKE_PASSWORD}
+user=${SNOWFLAKE_USER}
+authenticator=oauth
 driver=net.snowflake.client.jdbc.SnowflakeDriver
 changeLogFile=/tmp/dynamic_changeset.xml
