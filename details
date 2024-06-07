@@ -1,1 +1,5 @@
-External Data Cache: When querying external tables (tables stored in external storage systems like S3), Snowflake caches metadata information and query results as appropriate. While the caching behavior for external tables may differ from internal tables due to the nature of external storage systems, Snowflake still leverages caching to optimize performance whenever possible
+url=jdbc:snowflake://<account>.snowflakecomputing.com
+username=${SNOWFLAKE_USER}
+password=${SNOWFLAKE_PASSWORD}
+driver=net.snowflake.client.jdbc.SnowflakeDriver
+changeLogFile=/tmp/dynamic_changeset.xml
