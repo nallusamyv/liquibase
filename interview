@@ -21,3 +21,52 @@ Redshift Spectrum:
 
 How do you configure Redshift Spectrum to query data stored in S3? What are the steps involved in setting up an external schema and table?
 What are the advantages of using Redshift Spectrum for querying S3 data compared to loading data directly into Redshift tables?
+
+Creating External Tables:
+
+Explain the steps to create an external table in Snowflake to query Parquet files stored in an S3 bucket. Include details about creating the necessary storage integration and external stage.
+Follow-up: Can you provide an example SQL command for creating an external table?
+Complex Data Transformations:
+
+How would you handle complex data transformations when ingesting data from S3 into Snowflake? Discuss the role of AWS Glue and Snowflake's native capabilities.
+Performance Optimization:
+
+What strategies do you use to optimize the performance of Snowflake queries on external tables that reference large datasets in S3? Discuss partitioning, metadata caching, and file format considerations.
+Error Handling and Logging:
+
+How do you handle errors and ensure proper logging when running ETL processes that involve external tables in Snowflake? Provide examples of common issues and your approaches to troubleshooting them.
+Security Best Practices:
+
+Describe the security best practices you follow when setting up external tables in Snowflake to access data in S3. Include considerations for IAM roles, data encryption (both at rest and in transit), and access control policies.
+Design and Leadership Questions
+End-to-End Pipeline Design:
+
+Design an end-to-end data pipeline that ingests raw data from S3, processes it using AWS Glue, stores the transformed data back in S3 in Parquet format, and makes it available for querying via Snowflake external tables. Describe each component and the flow of data.
+Scalability and Resilience:
+
+How would you ensure that your data pipeline can scale to handle growing data volumes and remains resilient to failures? Discuss design principles, architecture patterns, and specific AWS and Snowflake features you would use.
+Team Collaboration and Mentorship:
+
+As a Tech Lead, how do you ensure effective collaboration within your team when working on complex data projects involving Snowflake and AWS? How do you mentor junior team members to help them grow their skills?
+Project Management:
+
+Describe a complex data integration project you led that involved Snowflake and AWS services. What were the biggest challenges, and how did you overcome them? How did you ensure the project was delivered on time and met the stakeholders' requirements?
+Innovation and Continuous Improvement:
+
+How do you stay current with the latest advancements in data engineering and cloud services? Can you provide an example of how you implemented a new technology or process improvement in your previous projects?
+Scenario-Based Questions
+Real-Time Data Processing:
+
+Suppose your organization needs to implement real-time data ingestion and processing from S3 into Snowflake. How would you design this pipeline using AWS services like Lambda, SNS, and Snowpipe?
+Cost Management:
+
+How do you manage and optimize costs when using Snowflake external tables to query large datasets stored in S3? Discuss specific cost-saving strategies and trade-offs.
+Handling Schema Evolution:
+
+Describe your approach to handling schema changes in data loaded from S3 into Snowflake. How do you ensure that your ETL processes and downstream queries are not disrupted by these changes?
+Cross-Region Data Access:
+
+How would you design a solution to efficiently access and process data stored in S3 buckets across multiple AWS regions using Snowflake external tables? Consider latency, data transfer costs, and consistency.
+Data Governance:
+
+What strategies do you employ to ensure data governance and compliance when working with sensitive data in Snowflake and S3? How do you enforce data quality, security, and privacy policies?
