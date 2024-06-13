@@ -1,0 +1,23 @@
+AWS S3 and Parquet Files:
+
+How do you optimize Parquet files stored in S3 for querying with Athena and Redshift Spectrum? What are the benefits of using Parquet over other file formats?
+AWS Glue:
+
+Can you describe the process of creating a Glue ETL job to transform data from S3 and load it into Redshift? What are the key components of a Glue job?
+How do you handle schema evolution in AWS Glue when the source data schema changes?
+Amazon Athena:
+
+How do you create an external table in Athena to query Parquet files stored in S3? Can you provide an example SQL query for this?
+What are the performance considerations when using Athena to query large datasets in S3?
+AWS Lambda:
+
+How do you include external libraries and dependencies in an AWS Lambda function? What are the different methods to manage Lambda dependencies?
+Describe a use case where you would use Lambda functions to process data stored in S3.
+Amazon SQS and SNS:
+
+How would you design a system that uses SQS and SNS for decoupling microservices? Can you explain a scenario where both services are used together?
+How do you ensure message durability and processing in SQS? What are the differences between standard and FIFO queues?
+Redshift Spectrum:
+
+How do you configure Redshift Spectrum to query data stored in S3? What are the steps involved in setting up an external schema and table?
+What are the advantages of using Redshift Spectrum for querying S3 data compared to loading data directly into Redshift tables?
