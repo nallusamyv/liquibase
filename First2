@@ -1,0 +1,35 @@
+import os
+import subprocess
+import boto3
+from awsglue.utils import getResolvedOptions
+
+# Define your S3 bucket and path for the changelog
+changelog_s3_bucket = "your-s3-bucket"
+changelog_s3_path = "path/to/changelog.xml"
+
+# Download the changelog file from S3
+s3 = boto3.client('s3')
+s3.download_file(changelog_s3_bucket, changelog_s3_path, '/tmp/changelog.xml')
+
+# Set up Liquibase environment variables
+os.environ['LIQUIBASE_HOME'] = '/path/to/liquibase'
+os.environ['PATH'] += os.pathsep + os.environ['LIQUIBASE_HOME']
+
+# Define the command to run Liquibase
+liquibase_command = [
+    'liquibase',
+    '--changeLogFile=/tmp/changelog.xml',
+    '--url=jdbc:your_database_url',
+    '--username=your_db_username',
+    '--password=your_db_password',
+    'update'
+]
+
+# Run the Liquibase command
+result = subprocess.run(liquibase_command, capture_output=True, text=True)
+
+# Check the result
+if result.returncode == 0:
+    print("Liquibase update successful.")
+else:
+    print(f"Liquibase update failed: {result.stderr}")
