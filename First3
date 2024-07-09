@@ -1,0 +1,81 @@
+import sys
+import subprocess
+import boto3
+import requests
+from requests_oauthlib import OAuth2Session
+from oauthlib.oauth2 import BackendApplicationClient
+
+# Function to retrieve OAuth token from Snowflake
+def get_oauth_token(client_id, client_secret, token_url):
+    client = BackendApplicationClient(client_id=client_id)
+    oauth = OAuth2Session(client=client)
+    token = oauth.fetch_token(token_url=token_url,
+                              client_id=client_id,
+                              client_secret=client_secret)
+    return token
+
+# Function to create Liquibase changelog XML dynamically with SQL statement
+def create_changelog_with_sql(sql):
+    changelog = '''<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="1" author="glue_job">
+        <sql><![CDATA[
+            {sql}
+        ]]></sql>
+    </changeSet>
+</databaseChangeLog>'''.format(sql=sql)
+    return changelog
+
+# Example SQL statement to execute in Snowflake via Liquibase
+sql_statement = "CREATE TABLE example_table (id INT, name STRING);"
+
+# Generate the Liquibase changelog XML
+changelog_content = create_changelog_with_sql(sql_statement)
+
+# Write the changelog content to a temporary file
+local_changelog_file_path = '/tmp/changelog.xml'
+with open(local_changelog_file_path, 'w') as changelog_file:
+    changelog_file.write(changelog_content)
+
+# Retrieve OAuth token from Snowflake
+client_id = 'your_snowflake_client_id'
+client_secret = 'your_snowflake_client_secret'
+token_url = 'https://youraccount.region.snowflakecomputing.com/oauth/token'  # Example URL, replace with actual token URL
+
+token = get_oauth_token(client_id, client_secret, token_url)
+
+# Upload the changelog file to S3 (example usage)
+s3_client = boto3.client('s3',
+                         aws_access_key_id='YOUR_ACCESS_KEY',
+                         aws_secret_access_key='YOUR_SECRET_KEY',
+                         aws_session_token=token['access_token'])
+
+s3_bucket = 'your_bucket_name'
+s3_key = 'changelog.xml'
+
+s3_client.upload_file(local_changelog_file_path, s3_bucket, s3_key)
+
+# Example Liquibase command to execute against Snowflake
+liquibase_command = [
+    'liquibase',
+    '--changeLogFile=' + s3_key,  # Use S3 path to the changelog file
+    '--url="jdbc:snowflake://youraccount.region.snowflakecomputing.com"',
+    '--username=your_snowflake_user',
+    '--password=your_snowflake_password',
+    '--driver=net.snowflake.client.jdbc.SnowflakeDriver',
+    'update'
+]
+
+# Run Liquibase command using subprocess
+result = subprocess.run(liquibase_command, capture_output=True, text=True)
+
+# Check the result
+if result.returncode == 0:
+    print("Liquibase update successful.")
+else:
+    print(f"Liquibase update failed: {result.stderr}")
