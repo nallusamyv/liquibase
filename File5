@@ -1,47 +1,43 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, lit, rand, round, date_format, from_unixtime
-from datetime import datetime, timedelta
+import os
+import boto3
+import subprocess
 
-# Create a Spark session
-spark = SparkSession.builder \
-    .appName("RepartitionAndRewriteData") \
-    .getOrCreate()
+s3_client = boto3.client('s3')
 
-# Read data into a DataFrame
-dataframe = spark.read \
-    .format("parquet") \
-    .option("basePath", "s3://your-bucket/path/to/incomefile") \
-    .load("s3://your-bucket/path/to/incomefile")
+# Set variables
+s3_bucket = 'your-bucket'
+liquibase_jar_key = 'liquibase/liquibase.jar'
+jdbc_jar_key = 'liquibase/snowflake-jdbc.jar'
+changelog_key = 'liquibase/changelog.xml'
 
-# Define the range for partition_dt
-start_date = datetime(2020, 2, 2)
-end_date = datetime.now()
+# Local paths to download files
+liquibase_jar_local_path = '/tmp/liquibase.jar'
+jdbc_jar_local_path = '/tmp/snowflake-jdbc.jar'
+changelog_local_path = '/tmp/changelog.xml'
 
-# Generate random dates within the specified range
-delta = end_date - start_date
-random_date = start_date + timedelta(days=rand() * delta.days)
+# Download files from S3 to local /tmp directory
+s3_client.download_file(s3_bucket, liquibase_jar_key, liquibase_jar_local_path)
+s3_client.download_file(s3_bucket, jdbc_jar_key, jdbc_jar_local_path)
+s3_client.download_file(s3_bucket, changelog_key, changelog_local_path)
 
-# Convert the random date to the desired format (yyyyMMdd)
-new_partition_dt = random_date.strftime("%Y%m%d")
+# Set environment variables
+os.environ['LIQUIBASE_HOME'] = '/tmp'
+os.environ['CLASSPATH'] = f"/tmp:{jdbc_jar_local_path}"
 
-# Repartition the DataFrame based on the contxt_id. This ensures that all records with the same contxt_id will be processed together.
-dataframe = dataframe.repartition("contxt_id")
+# Prepare Liquibase command
+liquibase_command = [
+    'java', '-jar', liquibase_jar_local_path,
+    '--changeLogFile=' + changelog_local_path,
+    '--url=jdbc:snowflake://youraccount.region.snowflakecomputing.com',
+    '--driver=net.snowflake.client.jdbc.SnowflakeDriver',
+    '--classpath=' + jdbc_jar_local_path,
+    '--accessToken=' + 'your-oauth-token',  # Replace with your actual token
+    'update'
+]
 
-# Update the necessary fields with new values
-# For example, change values in "some_field1", "some_field2", "some_field3", "some_field4", and "some_field5" columns
-dataframe = dataframe.withColumn("some_field1", lit("new_value1")) \
-                     .withColumn("some_field2", lit("new_value2")) \
-                     .withColumn("some_field3", lit("new_value3")) \
-                     .withColumn("some_field4", lit("new_value4")) \
-                     .withColumn("some_field5", lit("new_value5")) \
-                     .withColumn("partition_dt", lit(new_partition_dt))
-
-# Write data to new partition folders based on the updated partition_dt and contxt_id
-dataframe.write \
-    .partitionBy("partition_dt", "contxt_id") \
-    .format("parquet") \
-    .mode("overwrite") \
-    .save("s3://your-bucket/output-path")
-
-# Stop Spark session
-spark.stop()
+# Run Liquibase command
+try:
+    result = subprocess.run(liquibase_command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    print(result.stdout.decode('utf-8'))
+except subprocess.CalledProcessError as e:
+    print(e.stderr.decode('utf-8'))
