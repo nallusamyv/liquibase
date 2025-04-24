@@ -1,0 +1,98 @@
+import pandas as pd
+import json
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+
+# 1. Load and preprocess data
+def load_data(file_path):
+    df = pd.read_csv(file_path)
+    
+    # Handle JSON columns
+    json_columns = ['ab_records', 'vg_records']
+    for col in json_columns:
+        df[col] = df[col].apply(lambda x: json.loads(x) if pd.notna(x) else [])
+    
+    return df
+
+# 2. Create prompt template with system + human messages
+def create_prompt_template():
+    return ChatPromptTemplate.from_messages([
+        ("system", 
+         """You are a data governance expert. Refine column logical names using:
+         - Original metadata: SNo, Original Name/Description
+         - AB Records (data relationships)
+         - VG Records (governance context)
+         Return ONLY a JSON array with 5 refined names in order.""",
+        ),
+        ("human",
+         """Batch Context:
+{formatted_batch}
+
+Refinement Rules:
+1. Prioritize protection group codes in AB records
+2. Maintain VG record classification
+3. Use business-friendly terms
+4. Keep under 25 characters
+
+Output Format: ["name1", "name2", "name3", "name4", "name5"]"""
+        )
+    ])
+
+# 3. Create processing chain
+def create_processing_chain():
+    model = ChatOpenAI(model="gpt-4-turbo-preview", temperature=0.1)
+    parser = StrOutputParser()
+    
+    return (
+        {"formatted_batch": RunnablePassthrough()} 
+        | create_prompt_template()
+        | model
+        | parser
+        | (lambda output: json.loads(output))
+    )
+
+# 4. Batch formatter
+def format_batch(batch_df):
+    records = []
+    for idx, row in batch_df.iterrows():
+        record_str = (
+            f"Record {idx+1}:\n"
+            f"- SNo: {row['SNo']}\n"
+            f"- Current Logical Name: {row['columnlogicalname']}\n"
+            f"- Description: {row['columnlogicaldescription']}\n"
+            f"- AB Records (Sample): {json.dumps(row['ab_records'][:2])}\n"
+            f"- VG Records (Sample): {json.dumps(row['vg_records'][:2])}"
+        )
+        records.append(record_str)
+    return "\n\n".join(records)
+
+# 5. Main processing function
+def process_file(input_path, output_path):
+    df = load_data(input_path)
+    chain = create_processing_chain()
+    refined_names = []
+    
+    for i in range(0, len(df), 5):
+        batch = df.iloc[i:i+5]
+        try:
+            formatted_context = format_batch(batch)
+            result = chain.invoke(formatted_context)
+            refined_names.extend(result)
+        except (json.JSONDecodeError, KeyError) as e:
+            print(f"Error processing batch {i//5+1}: {str(e)}")
+            refined_names.extend(batch['columnlogicalname'].tolist())
+    
+    df['refined_logicalname'] = refined_names
+    df.to_csv(output_path, index=False)
+
+# 6. Execute the pipeline
+if __name__ == "__main__":
+    import os
+    os.environ["OPENAI_API_KEY"] = "your-api-key-here"  # Replace with your key
+    
+    process_file(
+        input_path="input.csv",
+        output_path="refined_output.csv"
+    )
