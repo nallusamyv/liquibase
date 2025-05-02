@@ -1,0 +1,219 @@
+# llm_service.py
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from langchain_community.vectorstores import Chroma
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain.prompts import ChatPromptTemplate
+import snowflake.connector
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# CORS Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize components
+embeddings = OpenAIEmbeddings()
+llm = ChatOpenAI(temperature=0)
+
+# VectorDB connections
+metadata_vdb = Chroma(
+    persist_directory="./metadata_db",
+    embedding_function=embeddings,
+    collection_name="metadata"
+)
+
+query_vdb = Chroma(
+    persist_directory="./query_db",
+    embedding_function=embeddings,
+    collection_name="verified_queries"
+)
+
+# Request Models
+class QueryRequest(BaseModel):
+    natural_language: str
+    user_id: str = "default"
+
+class ExecutionRequest(BaseModel):
+    sql: str
+    parameters: dict = {}
+
+# Core LLM Logic
+def generate_sql(nl_query: str) -> dict:
+    # 1. Check cached queries
+    similar = query_vdb.similarity_search(nl_query, k=1)
+    if similar:
+        return {
+            "sql": similar[0].metadata['sql'],
+            "source": "cache",
+            "similarity_score": similar[0].metadata['score']
+        }
+    
+    # 2. Retrieve relevant metadata
+    context_docs = metadata_vdb.similarity_search(nl_query, k=5)
+    context = "\n".join([d.page_content for d in context_docs])
+    
+    # 3. Generate SQL
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "Convert to SQL using:\n{context}"),
+        ("human", "Query: {query}")
+    ])
+    
+    chain = prompt | llm
+    return {
+        "sql": chain.invoke({"context": context, "query": nl_query}).content,
+        "source": "generated"
+    }
+
+# API Endpoints
+@app.post("/generate-sql")
+async def generate_sql_endpoint(request: QueryRequest):
+    try:
+        return generate_sql(request.natural_language)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/execute")
+async def execute_query(request: ExecutionRequest):
+    try:
+        conn = snowflake.connector.connect(
+            user=os.getenv("SNOWFLAKE_USER"),
+            password=os.getenv("SNOWFLAKE_PASSWORD"),
+            account=os.getenv("SNOWFLAKE_ACCOUNT"),
+            warehouse=os.getenv("SNOWFLAKE_WAREHOUSE")
+        )
+        cur = conn.cursor()
+        cur.execute(request.sql, request.parameters)
+        results = cur.fetchall()
+        return {"results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.post("/commit")
+async def commit_to_knowledge(request: QueryRequest, sql: str):
+    try:
+        query_vdb.add_texts(
+            texts=[request.natural_language],
+            metadatas=[{
+                "sql": sql,
+                "user": request.user_id,
+                "timestamp": str(datetime.now())
+            }]
+        )
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+------------------------------------
+
+
+# salt_ui.py
+import streamlit as st
+import requests
+from datetime import datetime
+
+# Configuration
+BACKEND_URL = "http://localhost:8000"
+SNOWFLAKE_ICON = "❄️"
+
+# Session State
+if "history" not in st.session_state:
+    st.session_state.history = []
+if "current_query" not in st.session_state:
+    st.session_state.current_query = {}
+
+# UI Layout
+st.set_page_config(layout="wide", page_icon=SNOWFLAKE_ICON)
+st.title("Natural Language to SQL Interface")
+
+# Sidebar - Knowledge Base
+with st.sidebar:
+    st.header("Verified Queries")
+    search_term = st.text_input("Search knowledge base")
+    if search_term:
+        response = requests.post(f"{BACKEND_URL}/search", json={"query": search_term})
+        if response.status_code == 200:
+            for doc in response.json()["results"]:
+                st.markdown(f"**{doc['natural_language']}**")
+                st.code(doc['sql'], language="sql")
+
+# Main Interface
+col1, col2 = st.columns([3, 1])
+
+with col1:  # Chat History
+    st.subheader("Query History")
+    for idx, entry in enumerate(st.session_state.history):
+        with st.expander(f"{entry['timestamp']} - {entry['query'][:30]}..."):
+            st.code(entry['sql'], language="sql")
+            if entry['results']:
+                st.dataframe(entry['results'])
+
+with col2:  # Input & Execution
+    st.subheader("New Query")
+    query = st.text_area("Enter natural language query:", height=150)
+    
+    if st.button("Generate SQL"):
+        response = requests.post(
+            f"{BACKEND_URL}/generate-sql",
+            json={"natural_language": query}
+        )
+        
+        if response.status_code == 200:
+            st.session_state.current_query = response.json()
+            st.session_state.current_query["natural_language"] = query
+            st.rerun()
+    
+    if st.session_state.current_query.get("sql"):
+        st.subheader("Generated SQL")
+        st.code(st.session_state.current_query["sql"], language="sql")
+        
+        if st.button("Test Execute"):
+            exec_response = requests.post(
+                f"{BACKEND_URL}/execute",
+                json={
+                    "sql": st.session_state.current_query["sql"],
+                    "parameters": {}
+                }
+            )
+            
+            if exec_response.status_code == 200:
+                st.session_state.current_query["results"] = exec_response.json()["results"]
+                st.rerun()
+        
+        if st.session_state.current_query.get("results"):
+            st.subheader("Execution Results")
+            st.dataframe(st.session_state.current_query["results"])
+            
+            if st.button("Commit to Knowledge Base"):
+                commit_response = requests.post(
+                    f"{BACKEND_URL}/commit",
+                    json={
+                        "natural_language": st.session_state.current_query["natural_language"],
+                        "sql": st.session_state.current_query["sql"]
+                    }
+                )
+                
+                if commit_response.status_code == 200:
+                    st.session_state.history.append({
+                        "timestamp": str(datetime.now()),
+                        "query": st.session_state.current_query["natural_language"],
+                        "sql": st.session_state.current_query["sql"],
+                        "results": st.session_state.current_query["results"]
+                    })
+                    st.session_state.current_query = {}
+                    st.rerun()
+
+if __name__ == "__main__":
+    st.run()
