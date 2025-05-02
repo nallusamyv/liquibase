@@ -1,0 +1,101 @@
+# core.py
+import os
+from typing import Dict, Any
+import pandas as pd
+from langchain.prompts import ChatPromptTemplate
+from langchain_community.vectorstores import Chroma
+from langchain_openai import OpenAI, OpenAIEmbeddings
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+
+# Initialize components
+os.environ["OPENAI_API_KEY"] = "your-api-key"  # Replace with your key
+llm = OpenAI(temperature=0.1)
+embeddings = OpenAIEmbeddings()
+
+# Load pre-existing ChromaDB vector store
+vectorstore = Chroma(
+    persist_directory="./chroma_db",  # Path to your ChromaDB data
+    embedding_function=embeddings
+)
+retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
+
+# =================================================================
+# Step 1: Generate initial logical name/description (no local rules)
+# =================================================================
+initial_prompt = ChatPromptTemplate.from_messages([
+    ("system", """You are a metadata standardization expert. Generate:
+    - logical_name (camelCase, no spaces/special chars)
+    - logical_description (concise, <50 words)
+    
+    Input column: {column_name}
+    Original description: {column_description}"""),
+    ("human", "Output ONLY valid JSON: {{'logical_name': '...', 'logical_description': '...'}}")
+])
+
+initial_chain = initial_prompt | llm | StrOutputParser()
+
+# =================================================================
+# Step 2: Refine with ChromaDB-retrieved local rules
+# =================================================================
+def format_rules(docs: list) -> str:
+    """Format retrieved ChromaDB documents into rule strings."""
+    return "\n".join([d.page_content for d in docs])
+
+refinement_prompt = ChatPromptTemplate.from_messages([
+    ("system", """Refine this metadata using LOCAL RULES:
+    {local_rules}
+    
+    Initial standardization:
+    {initial_output}"""),
+    ("human", """Apply these rules and output FINAL JSON:
+    {{"logical_name": "...", "logical_description": "..."}}""")
+])
+
+refinement_chain = (
+    RunnablePassthrough.assign(
+        local_rules=lambda x: format_rules(retriever.invoke(x["initial_output"])),
+    )
+    | refinement_prompt
+    | llm
+    | StrOutputParser()
+)
+
+# =================================================================
+# Full workflow chain
+# =================================================================
+full_workflow = (
+    RunnablePassthrough.assign(
+        initial_output=initial_chain,
+    )
+    | RunnablePassthrough.assign(
+        final_output=refinement_chain,
+    )
+)
+
+# =================================================================
+# CSV Processing
+# =================================================================
+def process_csv(input_path: str, output_path: str):
+    """Process CSV with metadata standardization workflow."""
+    df = pd.read_csv(input_path)
+    results = []
+    
+    for _, row in df.iterrows():
+        result = full_workflow.invoke({
+            "column_name": row["column_name"],
+            "column_description": row["column_description"]
+        })
+        results.append(eval(result["final_output"]))  # Convert JSON string to dict
+        
+    pd.DataFrame(results).to_csv(output_path, index=False)
+
+# =================================================================
+# Execution
+# =================================================================
+if __name__ == "__main__":
+    # Example usage
+    process_csv(
+        input_path="input_metadata.csv",
+        output_path="standardized_metadata.csv"
+    )
