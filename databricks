@@ -1,0 +1,95 @@
+To convert your partitioned Parquet files into a Delta table with UniForm format (enabling Iceberg compatibility) in Databricks while handling schema mismatches, follow these steps:
+
+Step 1: Configure Spark Session for Delta and UniForm
+python
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .appName("Parquet to Delta Uniform") \
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+    .getOrCreate()
+Step 2: Create UniForm Delta Table
+python
+# Define your expected schema (modify to match your table)
+expected_schema = """
+    id INT,
+    name STRING,
+    value DOUBLE,
+    timestamp TIMESTAMP,  # Strict type checking
+    eff_dt STRING
+"""
+
+table_path = "s3a://your-bucket/uniform_table"  # Delta table location
+
+# Create UniForm Delta table with Iceberg compatibility
+spark.sql(f"""
+CREATE TABLE delta.`{table_path}` (
+    {expected_schema}
+)
+USING DELTA
+PARTITIONED BY (eff_dt)
+TBLPROPERTIES (
+    'delta.universalFormat.enabledFormats' = 'iceberg'
+)
+""")
+Step 3: Process Partitions with Schema Validation
+python
+from pyspark.sql.utils import AnalysisException
+import json
+
+base_path = "s3a://your-bucket/parquet-data/"
+partition_col = "eff_dt"
+
+# Get partition values
+partitions = [row[partition_col] 
+              for row in spark.read.parquet(base_path)
+                .select(partition_col)
+                .distinct()
+                .collect()]
+
+def validate_schema(actual_schema, expected_schema):
+    """Strict schema comparison ignoring metadata and nullability"""
+    actual_simple = {f.name: str(f.dataType) for f in actual_schema}
+    expected_simple = {f.name: str(f.dataType) for f in expected_schema}
+    return actual_simple == expected_simple
+
+for eff_dt in partitions:
+    try:
+        # Read partition data
+        path = f"{base_path}/{partition_col}={eff_dt}"
+        df = spark.read.parquet(path)
+        
+        # Add partition column if missing
+        if partition_col not in df.columns:
+            df = df.withColumn(partition_col, lit(eff_dt))
+        
+        # Validate schema
+        table_schema = spark.table(f"delta.`{table_path}`").schema
+        if not validate_schema(df.schema, table_schema):
+            raise ValueError(f"Schema mismatch in {eff_dt}:\n"
+                             f"Expected: {json.dumps({f.name: str(f.dataType) for f in table_schema}, indent=2)}\n"
+                             f"Actual:   {json.dumps({f.name: str(f.dataType) for f in df.schema}, indent=2)}")
+        
+        # Write to Delta with dynamic overwrite
+        df.write.format("delta") \
+            .mode("overwrite") \
+            .option("replaceWhere", f"{partition_col} = '{eff_dt}'") \
+            .save(table_path)
+            
+        print(f"✅ Success: {eff_dt}")
+        
+    except Exception as e:
+        print(f"❌ FAILED {eff_dt}: {str(e)}")
+        # Continue processing other partitions
+Step 4: Verify Table Properties
+python
+# Check UniForm enabled
+display(spark.sql(f"SHOW TBLPROPERTIES delta.`{table_path}`")
+        .filter("key = 'delta.universalFormat.enabledFormats'"))
+
+# Query as Delta
+display(spark.read.format("delta").load(table_path))
+
+# Query as Iceberg (verify compatibility)
+display(spark.read.format("iceberg").load(table_path))
