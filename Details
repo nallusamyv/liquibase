@@ -1,136 +1,145 @@
-import json
-import snowflake.connector
-import os
+Python + LLM
 
-def lambda_handler(event, context):
-    # Get input parameters
-    queryid = event['queryid']
-    tableid = event['tableid']
-    tablename = event['tablename']
-    application = event['application']
-    
-    # Assign environment variables to local variables
-    snowflake_user = os.environ['SNOWFLAKE_USER']
-    snowflake_password = os.environ['SNOWFLAKE_PASSWORD']
-    snowflake_account = os.environ['SNOWFLAKE_ACCOUNT']
-    snowflake_warehouse = os.environ['SNOWFLAKE_WAREHOUSE']
-    snowflake_database = os.environ['SNOWFLAKE_DATABASE']
-    snowflake_schema = os.environ['SNOWFLAKE_SCHEMA']
-    audit_table = os.environ.get('AUDIT_TABLE', 'your_audit_table')  # Assuming audit table name is provided
-    
-    # Connect to Snowflake
-    conn = snowflake.connector.connect(
-        user=snowflake_user,
-        password=snowflake_password,
-        account=snowflake_account,
-        warehouse=snowflake_warehouse,
-        database=snowflake_database,
-        schema=snowflake_schema
-    )
-    
-    cursor = conn.cursor()
-    
-    try:
-        # Check if the table exists
-        if not check_table_exists(cursor, tablename, snowflake_schema):
-            # Check the query status using queryid
-            query_status = get_query_status(cursor, queryid)
-            raise Exception(f"Table '{tablename}' does not exist. Query ID '{queryid}' has status '{query_status}'.")
-        
-        # Create the view based on the application type
-        if application == 'real':
-            create_real_view(cursor, tablename, snowflake_schema)
-        elif application == 'batch':
-            create_batch_view(cursor, tablename, snowflake_schema, audit_table)
-        else:
-            raise Exception(f"Invalid application type: {application}")
-        
-        return {
-            'statusCode': 200,
-            'body': json.dumps('View created successfully')
-        }
-        
-    except Exception as e:
-        return {
-            'statusCode': 500,
-            'body': json.dumps(f"Error: {str(e)}")
-        }
-    
-    finally:
-        cursor.close()
-        conn.close()
+How do you initialize an LLM in Python using OpenAI or LangChain?
 
-def check_table_exists(cursor, tablename, schema):
-    cursor.execute(f"""
-        SELECT 1
-        FROM INFORMATION_SCHEMA.TABLES
-        WHERE TABLE_NAME = '{tablename}'
-        AND TABLE_SCHEMA = '{schema}'
-    """)
-    return cursor.fetchone() is not None
+Explanation: You create a model object with parameters like model name, temperature, or API key. This object interfaces with the model to generate responses or embeddings.
 
-def get_query_status(cursor, queryid):
-    cursor.execute(f"""
-        SELECT STATUS
-        FROM INFORMATION_SCHEMA.QUERY_HISTORY
-        WHERE QUERY_ID = '{queryid}'
-    """)
-    
-    query_status = cursor.fetchone()
-    return query_status[0] if query_status else 'UNKNOWN'
+What is a prompt template in LangChain?
 
-def create_real_view(cursor, tablename, schema):
-    cursor.execute(f"""
-        SELECT COLUMN_NAME
-        FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_NAME = '{tablename}'
-        AND TABLE_SCHEMA = '{schema}'
-        AND COLUMN_NAME NOT IN ('EFF_DT', 'Value')
-        ORDER BY ORDINAL_POSITION;
-    """)
-    
-    columns = [row[0] for row in cursor.fetchall()]
-    columns_to_include = ", ".join(columns)
-    columns_to_include += ", TO_DATE(partition_dt, 'YYYYMMDD') AS EFF_DT"
-    
-    create_view_sql = f"""
-    CREATE OR REPLACE VIEW {schema}.{tablename} AS
-    SELECT {columns_to_include}
-    FROM {schema}.{tablename}
-    """
-    
-    cursor.execute(create_view_sql)
+Explanation: A template for generating LLM input prompts dynamically. It allows substitution of variables and ensures consistent formatting.
 
-def create_batch_view(cursor, tablename, schema, audit_table):
-    cursor.execute(f"""
-        SELECT TO_DATE(MAX(partition_dt), 'YYYYMMDD') AS EFF_DT, MAX(cntxt) AS max_cntxt
-        FROM {schema}.{audit_table}
-    """)
-    
-    result = cursor.fetchone()
-    eff_dt = result[0]
-    max_cntxt = result[1]
-    
-    cursor.execute(f"""
-        SELECT COLUMN_NAME
-        FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_NAME = '{tablename}'
-        AND TABLE_SCHEMA = '{schema}'
-        AND COLUMN_NAME NOT IN ('EFF_DT', 'Value')
-        ORDER BY ORDINAL_POSITION;
-    """)
-    
-    columns = [row[0] for row in cursor.fetchall()]
-    columns_to_include = ", ".join(columns)
-    columns_to_include += f", '{eff_dt}' AS EFF_DT"
-    
-    create_view_sql = f"""
-    CREATE OR REPLACE VIEW {schema}.{tablename} AS
-    SELECT {columns_to_include}
-    FROM {schema}.{tablename}
-    JOIN {schema}.{audit_table}
-    ON {schema}.{tablename}.partition_dt = '{eff_dt}'
-    AND {schema}.{audit_table}.cntxt = {max_cntxt}
-    """
-    
-    cursor.execute(create_view_sql)
+What is the difference between synchronous and streaming LLM calls?
+
+Explanation: Synchronous returns the full output after processing; streaming returns output incrementally for real-time consumption.
+
+Explain the role of token limits in LLM calls.
+
+Explanation: Limits the number of tokens the model can process in input + output. Exceeding this may truncate results or fail the request.
+
+LangChain Core
+
+What is a Chain?
+
+Explanation: A pipeline connecting multiple operations (prompt creation, LLM calls, output parsing) into a sequence.
+
+What is an Agent?
+
+Explanation: Decides dynamically which tool or chain to use based on input. Useful for multi-step reasoning or workflow automation.
+
+Explain Memory in LangChain.
+
+Explanation: Stores conversation or intermediate data across multiple calls, enabling context retention in multi-turn workflows.
+
+Difference between Retriever and Memory
+
+Explanation:
+
+Retriever: Fetches external knowledge from databases or vector stores.
+
+Memory: Stores internal state within the workflow for context.
+
+What are callbacks in LangChain?
+
+Explanation: Hooks to monitor or log events in a chain, like token usage, API calls, or errors.
+
+LangGraph
+
+What is LangGraph?
+
+Explanation: A tool for visualizing and managing LangChain workflows as a directed graph of nodes, showing how data flows between LLM, tools, and outputs.
+
+Node types in LangGraph
+
+Explanation:
+
+Input nodes: Receive user input.
+
+LLM nodes: Call the model for output.
+
+Tool nodes: Interact with external APIs or databases.
+
+Output nodes: Collect final results.
+
+How does LangGraph help in debugging?
+
+Explanation: You can trace data through each node to identify where the workflow fails—LLM, database, or parsing.
+
+How do you test a pipeline in LangGraph?
+
+Explanation: Feed a sample input, observe intermediate node outputs, and ensure final output matches expectations.
+
+Vector Databases / ChromaDB
+
+What is a vector database?
+
+Explanation: Stores high-dimensional vectors for similarity search, commonly used with embeddings.
+
+What is a collection in ChromaDB?
+
+Explanation: Logical container for vectors, similar to a table in SQL. Each collection stores embeddings and optional metadata.
+
+What does persist() do in ChromaDB?
+
+Explanation: Saves in-memory vectors to disk to ensure data is not lost after process termination.
+
+Explain similarity search.
+
+Explanation: Finds vectors in the database closest to a query vector using a metric like cosine similarity.
+
+What is metadata filtering in vector search?
+
+Explanation: Limits search results based on metadata properties (like table name, LOB), in addition to vector similarity.
+
+How would you test if your vector database is working?
+
+Explanation: Insert sample embeddings, query with known inputs, and verify expected nearest vectors are returned.
+
+How do you handle large queries with limited memory?
+
+Explanation: Use batching, limit vectors per request, or move to persistent storage instead of keeping everything in-memory.
+
+Explain embedding quality validation
+
+Explanation: Test if similar inputs produce vectors that are close together in the vector space (high cosine similarity).
+
+Integration: LangChain + Vector DB
+
+How does a retriever work in LangChain?
+
+Explanation: Queries the vector database for relevant embeddings and passes the results to the LLM for context-aware generation.
+
+What’s the difference between semantic search and keyword search?
+
+Explanation:
+
+Semantic search: Finds conceptually similar items using embeddings.
+
+Keyword search: Finds exact text matches.
+
+How do you debug a failing LLM + vector DB pipeline?
+
+Explanation: Check if embeddings exist, retriever returns results, prompts are formatted correctly, and LLM output is valid.
+
+Explain retriever + chain combination
+
+Explanation: Retriever fetches relevant vectors; chain processes them through prompt templates and LLM to generate a final output.
+
+What is a fallback mechanism if retriever finds no results?
+
+Explanation: Options include returning default content, querying external sources, or asking LLM to handle without context.
+
+How do you measure performance of vector search?
+
+Explanation: Metrics include query latency, accuracy (retrieved relevant results), and embedding similarity quality.
+
+Explain batch vs single queries in vector DB
+
+Explanation: Batch queries reduce overhead when retrieving many vectors at once; single queries are simpler but slower for large workloads.
+
+How do you ensure embeddings and vector DB are consistent?
+
+Explanation: Maintain versioned embeddings, persist changes to disk, and run regular similarity checks.
+
+Explain role of indexes in vector databases
+
+Explanation: Indexes (like HNSW) optimize nearest-neighbor searches, improving retrieval speed in large datasets.
